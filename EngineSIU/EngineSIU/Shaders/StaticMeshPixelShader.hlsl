@@ -95,5 +95,5 @@ float4 mainPS(PS_INPUT_StaticMesh Input) : SV_Target
     // Shadow
     //FinalColor *= GetLightFromShadowMap(Input);
 
-    return FinalColor;
+    return (FinalColor);
 }

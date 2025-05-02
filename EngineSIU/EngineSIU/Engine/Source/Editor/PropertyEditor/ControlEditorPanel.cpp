@@ -25,6 +25,7 @@
 #include "Actors/DirectionalLightActor.h"
 #include "Actors/SpotLightActor.h"
 #include "Actors/AmbientLightActor.h"
+#include "Engine/SkeletalMeshActor.h"
 
 #include "Games/LastWar/Core/Spawner.h"
 #include "ImGUI/imgui.h"
@@ -300,7 +301,8 @@ void ControlEditorPanel::CreateModifyButton(const ImVec2 ButtonSize, ImFont* Ico
             { .Label= "Text",      .OBJ= OBJ_TEXT },
             { .Label= "Fireball",  .OBJ = OBJ_FIREBALL},
             { .Label= "Fog",       .OBJ= OBJ_FOG },
-            { .Label = "Spawner",  .OBJ = OBJ_Spawner}
+            { .Label = "Spawner",  .OBJ = OBJ_Spawner},
+            {.Label ="FBX", .OBJ=OBJ_FBX}
         };
 
         for (const auto& primitive : primitives)
@@ -394,6 +396,12 @@ void ControlEditorPanel::CreateModifyButton(const ImVec2 ButtonSize, ImFont* Ico
                 {
                     SpawnedActor = World->SpawnActor<ASpawnerActor>();
                     SpawnedActor->SetActorLabel(TEXT("OBJ_Spawner"));
+                }
+                case OBJ_FBX:
+                {
+                    SpawnedActor = World->SpawnActor<ASkeletalMeshActor>();
+                    SpawnedActor->SetActorLabel(TEXT("OBJ_FBX"));
+                 
                 }
                 case OBJ_TRIANGLE:
                 case OBJ_CAMERA:

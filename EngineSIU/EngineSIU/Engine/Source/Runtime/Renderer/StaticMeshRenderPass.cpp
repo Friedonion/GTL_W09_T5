@@ -27,6 +27,8 @@
 #include "UnrealEd/EditorViewportClient.h"
 #include "Components/Light/PointLightComponent.h"
 
+#include "Components/Mesh/SkeletalMeshComponent.h"
+
 FStaticMeshRenderPass::FStaticMeshRenderPass()
     : VertexShader(nullptr)
     , PixelShader(nullptr)
@@ -175,6 +177,14 @@ void FStaticMeshRenderPass::PrepareRenderArr()
             StaticMeshComponents.Add(iter);
         }
     }
+    for (const auto iter : TObjectRange<USkeletalMeshComponent>())
+    {
+        if (iter->GetWorld() == GEngine->ActiveWorld)
+        {
+            SkeletalMeshComponents.Add(iter);
+        }
+    }
+
 }
 
 void FStaticMeshRenderPass::PrepareRenderState(const std::shared_ptr<FViewportClient>& Viewport) 
@@ -362,6 +372,49 @@ void FStaticMeshRenderPass::RenderAllStaticMeshes(const std::shared_ptr<FViewpor
     }
 }
 
+void FStaticMeshRenderPass::RenderAllSkeletalMeshes(const std::shared_ptr<FViewportClient>& Viewport)
+{
+    for (USkeletalMeshComponent* Comp : SkeletalMeshComponents)
+    {
+        if (!Comp || !Comp->GetSkeletalMesh()) continue;
+
+        FBX::FSkeletalMeshRenderData* RenderData = Comp->GetSkeletalMesh()->GetRenderData();
+        if (!RenderData || !RenderData->VertexBuffer || !RenderData->IndexBuffer) continue;
+
+        FMatrix WorldMatrix = Comp->GetWorldMatrix();
+        FVector4 UUIDColor = Comp->EncodeUUID() / 255.0f;
+
+        UpdateObjectConstant(WorldMatrix, UUIDColor, false);
+
+        UINT Stride = sizeof(FBX::FSkeletalMeshVertex);
+        UINT Offset = 0;
+        Graphics->DeviceContext->IASetVertexBuffers(0, 1, &RenderData->VertexBuffer, &Stride, &Offset);
+        Graphics->DeviceContext->IASetIndexBuffer(RenderData->IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+        // 머터리얼 적용 (override 우선)
+        for (int SubMeshIndex = 0; SubMeshIndex < RenderData->MaterialSubsets.Num(); SubMeshIndex++)
+        {
+            uint32 MatIndex = RenderData->MaterialSubsets[SubMeshIndex].MaterialIndex;
+            FSubMeshConstants SubMeshData = FSubMeshConstants(false);
+            BufferManager->UpdateConstantBuffer(TEXT("FSubMeshConstants"), SubMeshData);
+
+            UMaterial* UsedMaterial =
+                (Comp->GetOverrideMaterials().IsValidIndex(MatIndex) && Comp->GetOverrideMaterials()[MatIndex])
+                ? Comp->GetOverrideMaterials()[MatIndex]
+                : Comp->GetSkeletalMesh()->GetMaterials()[MatIndex]->Material;
+
+
+                MaterialUtils::UpdateMaterial(BufferManager, Graphics, UsedMaterial->GetMaterialInfo());
+
+                Graphics->DeviceContext->DrawIndexed(
+                    RenderData->MaterialSubsets[SubMeshIndex].IndexCount,
+                    RenderData->MaterialSubsets[SubMeshIndex].IndexStart,
+                    0);
+        }
+    }
+}
+
+
 void FStaticMeshRenderPass::Render(const std::shared_ptr<FViewportClient>& Viewport)
 {
     //if (UPointLightComponent* PointLight = Cast<UPointLightComponent>(iter))
@@ -375,6 +428,7 @@ void FStaticMeshRenderPass::Render(const std::shared_ptr<FViewportClient>& Viewp
     PrepareRenderState(Viewport);
 
     RenderAllStaticMeshes(Viewport);
+    RenderAllSkeletalMeshes(Viewport);
 
     // 렌더 타겟 해제
     Graphics->DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);

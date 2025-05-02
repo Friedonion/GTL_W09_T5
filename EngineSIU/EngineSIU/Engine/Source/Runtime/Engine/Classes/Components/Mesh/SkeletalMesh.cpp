@@ -5,6 +5,15 @@
 #include "UObject/ObjectFactory.h"
 #include "EngineLoop.h"
 
+USkeletalMesh::USkeletalMesh()
+{
+    SkeletalMeshRenderData = new FBX::FSkeletalMeshRenderData();
+    SkeletalMeshRenderData->ObjectName = L"";
+    SkeletalMeshRenderData->DisplayName = "";
+    SkeletalMeshRenderData->VertexBuffer = nullptr;
+    SkeletalMeshRenderData->IndexBuffer = nullptr;
+}
+
 USkeletalMesh::~USkeletalMesh()
 {
     if (!SkeletalMeshRenderData) return;

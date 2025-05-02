@@ -1,7 +1,11 @@
 #include "FLoaderFBX.h"
 #include "EngineLoop.h"
 #include <functional>
-
+#include "UObject/ObjectFactory.h"
+#include "Components/Mesh/SkeletalMesh.h"
+#include "Components/Material/Material.h"
+#include "FLoaderOBJ.h"
+#include "HAL/PlatformType.h"
 
 using namespace FBX;
 
@@ -33,6 +37,33 @@ bool FLoaderFBX::ParseSkeletalMesh(const FString& FBXPath, FSkeletalMeshRenderDa
 
         FbxMesh* Mesh = Child->GetMesh();
 
+        // Extract materials
+        int MaterialCount = Child->GetMaterialCount();
+        for (int m = 0; m < MaterialCount; ++m)
+        {
+            FbxSurfaceMaterial* Material = Child->GetMaterial(m);
+            FObjMaterialInfo MatInfo;
+
+            if (Material)
+            {
+                MatInfo.MaterialName = Material->GetName();
+
+                FbxProperty DiffuseProperty = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+                if (DiffuseProperty.IsValid())
+                {
+                    int TextureCount = DiffuseProperty.GetSrcObjectCount<FbxFileTexture>();
+                    if (TextureCount > 0)
+                    {
+                        FbxFileTexture* Texture = DiffuseProperty.GetSrcObject<FbxFileTexture>(0);
+                        FString TexturePath = Texture->GetFileName();
+						MatInfo.DiffuseTexturePath = TexturePath.ToWideString();
+                    }
+                }
+            }
+
+            OutMeshData.Materials.Add(MatInfo);
+        }
+
         TArray<TArray<FBoneWeight>> VertexBoneWeights;
         ExtractSkinning(Mesh, VertexBoneWeights);
 
@@ -50,9 +81,18 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
     FbxVector4* ControlPoints = Mesh->GetControlPoints();
     int PolygonCount = Mesh->GetPolygonCount();
 
+    FbxNode* Node = Mesh->GetNode();
+    FbxLayerElementMaterial* MaterialElement = Mesh->GetElementMaterial();
+
     for (int i = 0; i < PolygonCount; i++)
     {
         if (Mesh->GetPolygonSize(i) != 3) continue;
+
+        int MaterialIndex = 0;
+        if (MaterialElement && MaterialElement->GetMappingMode() == FbxLayerElement::eByPolygon)
+        {
+            MaterialIndex = MaterialElement->GetIndexArray().GetAt(i);
+        }
 
         for (int j = 0; j < 3; j++)
         {
@@ -65,7 +105,6 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
             Vertex.Y = Position.Y;
             Vertex.Z = Position.Z;
 
-            // Normal
             FbxVector4 Normal;
             Mesh->GetPolygonVertexNormal(i, j, Normal);
             FVector NormalV = ConvertVector(Normal);
@@ -73,7 +112,6 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
             Vertex.NormalY = NormalV.Y;
             Vertex.NormalZ = NormalV.Z;
 
-            // UV
             FbxStringList UVSets;
             Mesh->GetUVSetNames(UVSets);
             if (UVSets.GetCount() > 0)
@@ -88,6 +126,7 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
 
             Vertex.R = Vertex.G = Vertex.B = 0.7f;
             Vertex.A = 1.0f;
+            Vertex.MaterialIndex = MaterialIndex;
 
             const auto& Weights = VertexBoneWeights[CPIndex];
             for (int w = 0; w < Weights.Num() && w < 4; ++w)
@@ -100,6 +139,33 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
             OutMeshData.Vertices.Add(Vertex);
         }
     }
+    // Submesh 정보 생성
+    TMap<int, FMaterialSubset> MaterialIndexToSubset;
+
+    for (int i = 0; i < OutMeshData.Indices.Num(); i += 3)
+    {
+        int TriangleIdx0 = OutMeshData.Indices[i];
+        int MatIndex = OutMeshData.Vertices[TriangleIdx0].MaterialIndex;
+
+        if (!MaterialIndexToSubset.Contains(MatIndex))
+        {
+            FMaterialSubset NewSubset;
+            NewSubset.MaterialIndex = MatIndex;
+            NewSubset.IndexStart = i;
+            NewSubset.IndexCount = 3;
+            MaterialIndexToSubset.Add(MatIndex, NewSubset);
+        }
+        else
+        {
+            MaterialIndexToSubset[MatIndex].IndexCount += 3;
+        }
+    }
+
+    for (auto& Pair : MaterialIndexToSubset)
+    {
+        OutMeshData.MaterialSubsets.Add(Pair.Value);
+    }
+
 }
 
 void FLoaderFBX::ExtractSkinning(FbxMesh* Mesh, TArray<TArray<FBoneWeight>>& OutVertexBoneWeights)
@@ -184,6 +250,22 @@ void FLoaderFBX::ExtractSkeleton(FbxScene* Scene, FSkeletalMeshRenderData& OutMe
 
     Traverse(RootNode, -1);
 }
+
+USkeletalMesh* FManagerFBX::CreateSkeletalMesh(const FString& PathFileName)
+{
+    FBX::FSkeletalMeshRenderData* RenderData = new FBX::FSkeletalMeshRenderData();
+
+    if (!FLoaderFBX::ParseSkeletalMesh(PathFileName, *RenderData))
+    {
+        delete RenderData;
+        return nullptr;
+    }
+
+    USkeletalMesh* NewMesh = FObjectFactory::ConstructObject<USkeletalMesh>(nullptr);
+    NewMesh->SetData(RenderData);
+    return NewMesh;
+}
+
 
 
 

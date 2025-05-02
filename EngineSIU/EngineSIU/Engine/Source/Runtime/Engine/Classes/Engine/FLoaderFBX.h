@@ -3,6 +3,9 @@
 #include "Define.h"
 #include <fbxsdk.h>
 
+
+class USkeletalMesh;
+
 namespace FBX
 {
     struct FBoneWeight
@@ -81,3 +84,10 @@ private:
         MeshData.BoundingBoxMax = Max;
     }
 };
+
+
+struct FManagerFBX
+{
+    static USkeletalMesh* CreateSkeletalMesh(const FString& PathFileName);
+};
+

@@ -10,6 +10,7 @@ class FDXDShaderManager;
 class UWorld;
 class UMaterial;
 class UStaticMeshComponent;
+class USkeletalMeshComponent;
 struct FStaticMaterial;
 class FShadowRenderPass;
 
@@ -34,7 +35,8 @@ public:
     virtual void PrepareRenderState(const std::shared_ptr<FViewportClient>& Viewport);
 
     virtual void RenderAllStaticMeshes(const std::shared_ptr<FViewportClient>& Viewport);
-    
+    void RenderAllSkeletalMeshes(const std::shared_ptr<FViewportClient>& Viewport);
+
     void UpdateObjectConstant(const FMatrix& WorldMatrix, const FVector4& UUIDColor, bool bIsSelected) const;
   
     void UpdateLitUnlitConstant(int32 isLit) const;
@@ -55,6 +57,8 @@ protected:
 
 
     TArray<UStaticMeshComponent*> StaticMeshComponents;
+    TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+
 
     ID3D11VertexShader* VertexShader;
     ID3D11InputLayout* InputLayout;

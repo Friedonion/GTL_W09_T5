@@ -10,7 +10,7 @@ class USkeletalMesh : public UObject
     DECLARE_CLASS(USkeletalMesh, UObject)
 
 public:
-    USkeletalMesh() = default;
+    USkeletalMesh() ;
     virtual ~USkeletalMesh() override;
 
     virtual UObject* Duplicate(UObject* InOuter) override;
