@@ -465,3 +465,4 @@ struct FFadeConstants
     float FadeAlpha = 1.0f;
     FVector padding1;
 };
+

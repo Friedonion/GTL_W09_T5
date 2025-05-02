@@ -132,7 +132,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(FBXSDK_DIR)\include;$(ProjectDir)\Engine\Source\ThirdParty\DirectXTK\Include;$(ProjectDir)\Shaders;$(ProjectDir)\Engine\Source\Runtime\InteractiveToolsFramework;$(ProjectDir)\Engine\Source\ThirdParty;$(ProjectDir)\Engine\Source\Runtime;$(ProjectDir)\Engine\Source\Runtime\Windows;$(ProjectDir)\Engine\Source\ThirdParty\include;$(ProjectDir)\Engine\Source\Editor;$(ProjectDir)\Engine\Source\Runtime\CoreUObject;$(ProjectDir)\Engine\Source\Runtime\Core;$(ProjectDir)\Engine\Source\Runtime\Launch;$(ProjectDir)\Engine\Source\Runtime\Engine;$(ProjectDir)\Engine\Source\Runtime\Engine\Classes;$(ProjectDir)\Engine\Source;$(ProjectDir);$(ProjectDir)\Engine\Source\ThirdParty\Lua\include;$(ProjectDir)Engine\Source\ThirdParty\sol2;$(ProjectDir)Engine\Source\ThirdParty\FMOD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\include;$(ProjectDir)\Engine\Source\ThirdParty\DirectXTK\Include;$(ProjectDir)\Shaders;$(ProjectDir)\Engine\Source\Runtime\InteractiveToolsFramework;$(ProjectDir)\Engine\Source\ThirdParty;$(ProjectDir)\Engine\Source\Runtime;$(ProjectDir)\Engine\Source\Runtime\Windows;$(ProjectDir)\Engine\Source\ThirdParty\include;$(ProjectDir)\Engine\Source\Editor;$(ProjectDir)\Engine\Source\Runtime\CoreUObject;$(ProjectDir)\Engine\Source\Runtime\Core;$(ProjectDir)\Engine\Source\Runtime\Launch;$(ProjectDir)\Engine\Source\Runtime\Engine;$(ProjectDir)\Engine\Source\Runtime\Engine\Classes;$(ProjectDir)\Engine\Source;$(ProjectDir);$(ProjectDir)\Engine\Source\ThirdParty\Lua\include;$(ProjectDir)Engine\Source\ThirdParty\sol2;$(ProjectDir)Engine\Source\ThirdParty\FMOD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -140,7 +140,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(FBXSDK_DIR)\lib\$(PlatformTarget)\$(Configuration);$(FBXSDK_DIR)\lib\$(PlatformTarget)\$(Configuration);$(ProjectDir)Engine\Source\ThirdParty\DirectXTK\Lib\$(PlatformTarget)\$(Configuration);$(ProjectDir)Engine\Source\ThirdParty\Lua\lib;$(ProjectDir)Engine\Source\ThirdParty\FMOD\lib\$(PlatformTarget)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.7\lib\x64\debug;$(ProjectDir)Engine\Source\ThirdParty\DirectXTK\Lib\$(PlatformTarget)\$(Configuration);$(ProjectDir)Engine\Source\ThirdParty\Lua\lib;$(ProjectDir)Engine\Source\ThirdParty\FMOD\lib\$(PlatformTarget)</AdditionalLibraryDirectories>
       <AdditionalDependencies>DirectXTK.lib;libfbxsdk-md.lib;libxml2-md.lib;zlib-md.lib;lua.lib;fmod_vc.lib;fmodL_vc.lib;fmodstudio_vc.lib;fmodstudioL_vc.lib;fsbank_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -243,7 +243,7 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Light\PointLightComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Light\SpotLightComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Material\Material.cpp" />
-    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\MeshComponent.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\MeshComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\StaticMesh.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\ParticleSubUVComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\PrimitiveComponent.cpp" />
@@ -260,6 +260,7 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\CurveManager.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\EditorEngine.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\Engine.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\FLoaderFBX.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\FLoaderOBJ.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\ResourceMgr.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\StaticMeshActor.cpp" />
@@ -324,6 +325,9 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\Lua\LuaScriptManager.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\Lua\LuaTypes\LuaUserTypes.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Camera\PlayerCameraManager.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMesh.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.cpp" />
     <None Include="Engine\Source\ThirdParty\FMOD\bin\arm64\fmod.dll" />
     <None Include="Engine\Source\ThirdParty\FMOD\bin\arm64\fmodL.dll" />
     <None Include="Engine\Source\ThirdParty\FMOD\bin\arm64\fmodstudio.dll" />
@@ -516,7 +520,7 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Light\PointLightComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Light\SpotLightComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Material\Material.h" />
-    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\MeshComponent.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\MeshComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\StaticMesh.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\ParticleSubUVComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\PrimitiveComponent.h" />
@@ -535,6 +539,7 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\EditorEngine.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\Engine.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\EngineTypes.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\FLoaderFBX.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\FLoaderOBJ.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\Lua\LuaUtils\LuaBindUtils.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\Lua\LuaUtils\LuaTypeMacros.h" />
@@ -773,6 +778,9 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\Lua\LuaScriptManager.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\Lua\LuaTypes\LuaUserTypes.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Camera\PlayerCameraManager.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMesh.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.h" />
     <None Include="Shaders\EditorShaderConstants.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

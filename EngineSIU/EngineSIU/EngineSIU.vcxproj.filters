@@ -402,10 +402,10 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\CubeComp.h">
       <Filter>Engine\Source\Runtime\Engine\Classes\Components</Filter>
     </ClInclude>
-    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\MeshComponent.cpp">
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\MeshComponent.cpp">
       <Filter>Engine\Source\Runtime\Engine\Classes\Components</Filter>
     </ClCompile>
-    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\MeshComponent.h">
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\MeshComponent.h">
       <Filter>Engine\Source\Runtime\Engine\Classes\Components</Filter>
     </ClInclude>
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\PrimitiveComponent.cpp">
@@ -816,6 +816,10 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Camera\CameraModifier\CameraShakeModifier.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\SpringArmComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\CurveManager.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\FLoaderFBX.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMesh.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="EngineSIU.natvis" />
@@ -1064,6 +1068,10 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Camera\CameraModifier\CameraShakeModifier.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\SpringArmComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\CurveManager.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\FLoaderFBX.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMesh.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SlateShader.hlsl" />
