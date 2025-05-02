@@ -4,6 +4,8 @@
 .idea/
 .vscode/
 
+
+
 ### C++ ###
 # Prerequisites
 *.d
@@ -455,3 +457,13 @@ FodyWeavers.xsd
 
 
 !EngineSIU/EngineSIU/Engine/Source/ThirdParty/**/**
+# 무시
+EngineSIU/EngineSIU/Engine/Source/ThirdParty/FBX/lib/
+EngineSIU/EngineSIU/Engine/Source/ThirdParty/FBX/bin/
+
+# lib, bin 무시
+EngineSIU/EngineSIU/Engine/Source/ThirdParty/FBX/lib/
+EngineSIU/EngineSIU/Engine/Source/ThirdParty/FBX/bin/
+
+# include만 명시적으로 포함
+!EngineSIU/EngineSIU/Engine/Source/ThirdParty/FBX/include/**

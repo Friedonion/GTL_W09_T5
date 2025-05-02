@@ -38,11 +38,34 @@ int32 FEngineLoop::PreInit()
 {
     return 0;
 }
+/*#include <fbxsdk.h>
 
+void LoadFBX(const char* FilePath)
+{
+    FbxManager* manager = FbxManager::Create();
+    FbxIOSettings* ioSettings = FbxIOSettings::Create(manager, IOSROOT);
+    manager->SetIOSettings(ioSettings);
+
+    FbxImporter* importer = FbxImporter::Create(manager, "");
+    bool success = importer->Initialize(FilePath, -1, manager->GetIOSettings());
+    if (!success) {
+        return;
+    }
+
+    FbxScene* scene = FbxScene::Create(manager, "scene");
+    importer->Import(scene);
+    importer->Destroy();
+
+
+    // Clean up
+    scene->Destroy();
+    ioSettings->Destroy();
+    manager->Destroy();
+}*/
 int32 FEngineLoop::Init(HINSTANCE hInstance)
 {
     FPlatformTime::InitTiming();
-
+    //LoadFBX(TEXT("C:/Users/Jungle/Documents/GitHub/GTL_W09_T5/EngineSIU/EngineSIU/Contents/FBX/test.fbx"));
     /* must be initialized before window. */
     WindowInit(hInstance);
 
@@ -53,7 +76,9 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     LevelEditor = new SLevelEditor();
     LuaScriptManager = new FLuaScriptManager();
     
-
+    {
+        
+    }
     UnrealEditor->Initialize();
     GraphicDevice.Initialize(AppWnd);
     AudioManager::Get().Initialize();
