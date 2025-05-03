@@ -3,6 +3,7 @@
 #include "UnrealClient.h"
 #include "WindowsPlatformTime.h"
 #include "Audio/AudioManager.h"
+#include "Components/Mesh/SkeletalMeshComponent.h"
 #include "D3D11RHI/GraphicDevice.h"
 #include "Engine/EditorEngine.h"
 #include "LevelEditor/SLevelEditor.h"
@@ -14,6 +15,8 @@
 #include "Engine/Lua/LuaScriptManager.h" 
 #include "UnrealEd/EditorConfigManager.h"
 #include "Games/LastWar/UI/LastWarUI.h"
+#include "SkeletalMesh/FFBXImporter.h"
+#include "SkeletalMesh/USkeletalMesh.h"
 
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -119,6 +122,11 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
 
     GEngine = FObjectFactory::ConstructObject<UEditorEngine>(nullptr);
     GEngine->Init();
+
+    USkeletalMesh* Mesh = FFBXImporter::LoadSkeletalMesh(TEXT("Contents/FBX/test.fbx"));
+    AActor* Actor = GEngine->ActiveWorld->SpawnActor<AActor>();
+    USkeletalMeshComponent* Comp = Actor->AddComponent<USkeletalMeshComponent>();
+    Comp->SetSkeletalMesh(Mesh);
 
     UpdateUI();
 

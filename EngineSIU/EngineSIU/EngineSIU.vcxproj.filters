@@ -816,6 +816,12 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Camera\CameraModifier\CameraShakeModifier.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\SpringArmComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Engine\CurveManager.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\SkeletalMesh\SkeletalMeshLoader.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\SkeletalMesh\USkeletalMesh.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\SkeletalMesh\CPUSkinningUtil.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\SkeletalMesh\FFBXImporter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="EngineSIU.natvis" />
@@ -1064,6 +1070,13 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Camera\CameraModifier\CameraShakeModifier.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\SpringArmComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Engine\CurveManager.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\SkeletalMeshLoader.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\SkeletalMeshTypes.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\USkeletalMesh.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\CPUSkinningUtil.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\FFBXImporter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SlateShader.hlsl" />

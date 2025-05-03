@@ -80,7 +80,9 @@ public:
     ID3D11Buffer* CreateImmutableVertexBuffer(const FString& key, const TArray<T>& Vertices);
 
     ID3D11Buffer* CreateImmutableIndexBuffer(const FString& key, const TArray<uint32>& indices);
-    
+    template<typename T>
+    ID3D11Buffer* CreateDynamicVertexBuffer(const FString& Key, const TArray<T>& Vertices);
+
     // 상수 버퍼 생성/해제
     void CreateConstantBuffers();
     void ReleaseConstantBuffer() const;
@@ -129,4 +131,11 @@ inline ID3D11Buffer* FRenderer::CreateImmutableIndexBuffer(const FString& key, c
     FIndexInfo IndexInfo;
     BufferManager->CreateIndexBuffer(key, indices, IndexInfo);
     return IndexInfo.IndexBuffer;
+}
+template<typename T>
+inline ID3D11Buffer* FRenderer::CreateDynamicVertexBuffer(const FString& key, const TArray<T>& Vertices)
+{
+    FVertexInfo VertexBufferInfo;
+    BufferManager->CreateDynamicVertexBuffer(key, Vertices, VertexBufferInfo);
+    return VertexBufferInfo.VertexBuffer;
 }

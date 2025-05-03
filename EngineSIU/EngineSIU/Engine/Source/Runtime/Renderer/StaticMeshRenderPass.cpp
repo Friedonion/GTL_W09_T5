@@ -26,6 +26,7 @@
 
 #include "UnrealEd/EditorViewportClient.h"
 #include "Components/Light/PointLightComponent.h"
+#include "Components/Mesh/SkeletalMeshComponent.h"
 
 FStaticMeshRenderPass::FStaticMeshRenderPass()
     : VertexShader(nullptr)
@@ -168,11 +169,18 @@ void FStaticMeshRenderPass::InitializeShadowManager(class FShadowManager* InShad
 
 void FStaticMeshRenderPass::PrepareRenderArr()
 {
-    for (const auto iter : TObjectRange<UStaticMeshComponent>())
+    for (const auto iter : TObjectRange<UMeshComponent>())
     {
         if (!Cast<UGizmoBaseComponent>(iter) && iter->GetWorld() == GEngine->ActiveWorld)
         {
-            StaticMeshComponents.Add(iter);
+            if (UStaticMeshComponent* StaticComp = Cast<UStaticMeshComponent>(iter))
+            {
+                StaticMeshComponents.Add(StaticComp);
+            }
+            else if (USkeletalMeshComponent* SkeletalComp = Cast<USkeletalMeshComponent>(iter))
+            {
+                SkeletalMeshComponents.Add(SkeletalComp);
+            }
         }
     }
 }
@@ -361,6 +369,95 @@ void FStaticMeshRenderPass::RenderAllStaticMeshes(const std::shared_ptr<FViewpor
         }
     }
 }
+void FStaticMeshRenderPass::RenderAllSkeletalMeshes(const std::shared_ptr<FViewportClient>& Viewport)
+{
+    for (USkeletalMeshComponent* Comp : SkeletalMeshComponents)
+    {
+        if (!Comp || !Comp->GetSkeletalMesh())
+        {
+            continue;
+        }
+
+        // 1. CPU Skinning 결과 버텍스/인덱스 획득
+        TArray<FVector> SkinnedVertices;
+        TArray<uint32> SkinnedIndices;
+        Comp->GetSkinnedVertexIndexBuffers(SkinnedVertices, SkinnedIndices);
+
+        if (SkinnedVertices.Num() == 0 || SkinnedIndices.Num() == 0)
+        {
+            continue;
+        }
+
+        // 2. GPU용 버퍼 생성
+        ID3D11Buffer* VertexBuffer = nullptr;
+        ID3D11Buffer* IndexBuffer = nullptr;
+
+        D3D11_BUFFER_DESC vbDesc = {};
+        vbDesc.Usage = D3D11_USAGE_DEFAULT;
+        vbDesc.ByteWidth = sizeof(FVector) * SkinnedVertices.Num();
+        vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA vbData = {};
+        vbData.pSysMem = SkinnedVertices.GetData();
+
+        HRESULT hr = Graphics->Device->CreateBuffer(&vbDesc, &vbData, &VertexBuffer);
+        if (FAILED(hr))
+        {
+            UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal vertex buffer"));
+            continue;
+        }
+
+        D3D11_BUFFER_DESC ibDesc = {};
+        ibDesc.Usage = D3D11_USAGE_DEFAULT;
+        ibDesc.ByteWidth = sizeof(uint32) * SkinnedIndices.Num();
+        ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA ibData = {};
+        ibData.pSysMem = SkinnedIndices.GetData();
+
+        hr = Graphics->Device->CreateBuffer(&ibDesc, &ibData, &IndexBuffer);
+        if (FAILED(hr))
+        {
+            UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal index buffer"));
+            VertexBuffer->Release();
+            continue;
+        }
+
+        // 3. 선택 여부, UUID 등
+        UEditorEngine* Engine = Cast<UEditorEngine>(GEngine);
+
+        USceneComponent* SelectedComponent = Engine->GetSelectedComponent();
+        AActor* SelectedActor = Engine->GetSelectedActor();
+
+        USceneComponent* TargetComponent = nullptr;
+        if (SelectedComponent) TargetComponent = SelectedComponent;
+        else if (SelectedActor) TargetComponent = SelectedActor->GetRootComponent();
+
+        const bool bIsSelected = (Engine && TargetComponent == Comp);
+
+        FMatrix WorldMatrix = Comp->GetWorldMatrix();
+        FVector4 UUIDColor = Comp->EncodeUUID() / 255.0f;
+
+        UpdateObjectConstant(WorldMatrix, UUIDColor, bIsSelected);
+
+        // 4. Draw
+        UINT Stride = sizeof(FVector);
+        UINT Offset = 0;
+        Graphics->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
+        Graphics->DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+        Graphics->DeviceContext->DrawIndexed(SkinnedIndices.Num(), 0, 0);
+
+        // 5. AABB 디버깅
+        if (Viewport->GetShowFlag() & static_cast<uint64>(EEngineShowFlags::SF_AABB))
+        {
+            FEngineLoop::PrimitiveDrawBatch.AddAABBToBatch(Comp->GetBoundingBox(), Comp->GetWorldLocation(), WorldMatrix);
+        }
+
+        // 6. 임시 버퍼 해제
+        IndexBuffer->Release();
+        VertexBuffer->Release();
+    }
+}
 
 void FStaticMeshRenderPass::Render(const std::shared_ptr<FViewportClient>& Viewport)
 {
@@ -376,6 +473,7 @@ void FStaticMeshRenderPass::Render(const std::shared_ptr<FViewportClient>& Viewp
 
     RenderAllStaticMeshes(Viewport);
 
+    RenderAllSkeletalMeshes(Viewport);
     // 렌더 타겟 해제
     Graphics->DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
     ID3D11ShaderResourceView* nullSRV = nullptr;
@@ -400,6 +498,7 @@ void FStaticMeshRenderPass::Render(const std::shared_ptr<FViewportClient>& Viewp
 void FStaticMeshRenderPass::ClearRenderArr()
 {
     StaticMeshComponents.Empty();
+    SkeletalMeshComponents.Empty();
 }
 
 
