@@ -8,7 +8,7 @@ ASkeletalMeshActor::ASkeletalMeshActor()
     SkeletalMeshComponent = AddComponent<USkeletalMeshComponent>();
     RootComponent = SkeletalMeshComponent;
 
-    USkeletalMesh* DefaultMesh = FManagerFBX::CreateSkeletalMesh("Contents/riden/source/riden.fbx");
+    USkeletalMesh* DefaultMesh = FManagerFBX::CreateSkeletalMesh("Contents/Mutant.fbx");
     if (DefaultMesh)
     {
         SkeletalMeshComponent->SetSkeletalMesh(DefaultMesh);

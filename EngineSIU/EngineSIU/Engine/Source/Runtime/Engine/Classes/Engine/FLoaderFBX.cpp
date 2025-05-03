@@ -26,55 +26,24 @@ bool FLoaderFBX::ParseSkeletalMesh(const FString& FBXPath, FSkeletalMeshRenderDa
     Importer->Import(Scene);
     Importer->Destroy();
 
+    FbxGeometryConverter Converter(SdkManager);
+    Converter.Triangulate(Scene, true);
+
     FbxNode* RootNode = Scene->GetRootNode();
     if (!RootNode)
-        return false;
-
-    for (int i = 0; i < RootNode->GetChildCount(); i++)
     {
-        FbxNode* Child = RootNode->GetChild(i);
-        if (!Child->GetMesh()) continue;
-
-        FbxMesh* Mesh = Child->GetMesh();
-
-        // Extract materials
-        int MaterialCount = Child->GetMaterialCount();
-        for (int m = 0; m < MaterialCount; ++m)
-        {
-            FbxSurfaceMaterial* Material = Child->GetMaterial(m);
-            FObjMaterialInfo MatInfo;
-
-            if (Material)
-            {
-                MatInfo.MaterialName = Material->GetName();
-
-                FbxProperty DiffuseProperty = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-                if (DiffuseProperty.IsValid())
-                {
-                    int TextureCount = DiffuseProperty.GetSrcObjectCount<FbxFileTexture>();
-                    if (TextureCount > 0)
-                    {
-                        FbxFileTexture* Texture = DiffuseProperty.GetSrcObject<FbxFileTexture>(0);
-                        FString TexturePath = Texture->GetFileName();
-						MatInfo.DiffuseTexturePath = TexturePath.ToWideString();
-                    }
-                }
-            }
-
-            OutMeshData.Materials.Add(MatInfo);
-        }
-
-        TArray<TArray<FBoneWeight>> VertexBoneWeights;
-        ExtractSkinning(Mesh, VertexBoneWeights);
-
-        ProcessSkeletalMesh(Mesh, OutMeshData, Scene, VertexBoneWeights);
+        SdkManager->Destroy();
+        return false;
     }
+
+    TraverseMeshNodes(RootNode, OutMeshData, Scene);
 
     ComputeBoundingBox(OutMeshData);
     ExtractSkeleton(Scene, OutMeshData);
     SdkManager->Destroy();
     return true;
 }
+
 
 void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& OutMeshData, FbxScene* Scene, const TArray<TArray<FBoneWeight>>& VertexBoneWeights)
 {
@@ -83,6 +52,9 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
 
     FbxNode* Node = Mesh->GetNode();
     FbxLayerElementMaterial* MaterialElement = Mesh->GetElementMaterial();
+
+    // CPIndex + polygonVertexIdx 기준으로 유일한 정점 생성
+    TMap<FString, int> VertexMap;
 
     for (int i = 0; i < PolygonCount; i++)
     {
@@ -94,17 +66,27 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
             MaterialIndex = MaterialElement->GetIndexArray().GetAt(i);
         }
 
-        for (int j = 0; j < 3; j++)
+        // 역순으로 삼각형 추가 (backface culling 대응)
+        for (int j = 2; j >= 0; j--)
         {
             int CPIndex = Mesh->GetPolygonVertex(i, j);
-            FbxVector4 Pos = ControlPoints[CPIndex];
+
+            // 고유 키: CPIndex + UVIndex + NormalIndex 등
+            FString Key = FString::Printf(TEXT("%d_%d_%d"), CPIndex, i, j);
+            int* CachedIndex = VertexMap.Find(Key);
+            if (CachedIndex)
+            {
+                OutMeshData.Indices.Add(*CachedIndex);
+                continue;
+            }
 
             FSkeletalMeshVertex Vertex = {};
-            FVector Position = ConvertVector(Pos);
+            FVector Position = ConvertVector(ControlPoints[CPIndex]);
             Vertex.X = Position.X;
             Vertex.Y = Position.Y;
             Vertex.Z = Position.Z;
 
+            // Normal
             FbxVector4 Normal;
             Mesh->GetPolygonVertexNormal(i, j, Normal);
             FVector NormalV = ConvertVector(Normal);
@@ -112,6 +94,7 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
             Vertex.NormalY = NormalV.Y;
             Vertex.NormalZ = NormalV.Z;
 
+            // UV
             FbxStringList UVSets;
             Mesh->GetUVSetNames(UVSets);
             if (UVSets.GetCount() > 0)
@@ -119,9 +102,9 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
                 FbxVector2 UV;
                 bool Unmapped;
                 Mesh->GetPolygonVertexUV(i, j, UVSets[0], UV, Unmapped);
-                FVector2D ConvertedUV = ConvertUV(UV);
-                Vertex.U = ConvertedUV.X;
-                Vertex.V = ConvertedUV.Y;
+                FVector2D UVConv = ConvertUV(UV);
+                Vertex.U = UVConv.X;
+                Vertex.V = UVConv.Y;
             }
 
             Vertex.R = Vertex.G = Vertex.B = 0.7f;
@@ -135,11 +118,14 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
                 Vertex.BoneWeights[w] = Weights[w].Weight;
             }
 
-            OutMeshData.Indices.Add(OutMeshData.Vertices.Num());
+            int NewIndex = OutMeshData.Vertices.Num();
             OutMeshData.Vertices.Add(Vertex);
+            OutMeshData.Indices.Add(NewIndex);
+            VertexMap.Add(Key, NewIndex);
         }
     }
-    // Submesh 정보 생성
+
+    // Submesh 분할
     TMap<int, FMaterialSubset> MaterialIndexToSubset;
 
     for (int i = 0; i < OutMeshData.Indices.Num(); i += 3)
@@ -149,11 +135,11 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
 
         if (!MaterialIndexToSubset.Contains(MatIndex))
         {
-            FMaterialSubset NewSubset;
-            NewSubset.MaterialIndex = MatIndex;
-            NewSubset.IndexStart = i;
-            NewSubset.IndexCount = 3;
-            MaterialIndexToSubset.Add(MatIndex, NewSubset);
+            FMaterialSubset Subset;
+            Subset.MaterialIndex = MatIndex;
+            Subset.IndexStart = i;
+            Subset.IndexCount = 3;
+            MaterialIndexToSubset.Add(MatIndex, Subset);
         }
         else
         {
@@ -165,8 +151,9 @@ void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& Out
     {
         OutMeshData.MaterialSubsets.Add(Pair.Value);
     }
-
 }
+
+
 
 void FLoaderFBX::ExtractSkinning(FbxMesh* Mesh, TArray<TArray<FBoneWeight>>& OutVertexBoneWeights)
 {
@@ -264,6 +251,49 @@ USkeletalMesh* FManagerFBX::CreateSkeletalMesh(const FString& PathFileName)
     USkeletalMesh* NewMesh = FObjectFactory::ConstructObject<USkeletalMesh>(nullptr);
     NewMesh->SetData(RenderData);
     return NewMesh;
+}
+
+void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMeshData, FbxScene* Scene)
+{
+    if (Node->GetMesh())
+    {
+        FbxMesh* Mesh = Node->GetMesh();
+
+        // 기존 머터리얼 로직 복붙
+        int MaterialCount = Node->GetMaterialCount();
+        for (int m = 0; m < MaterialCount; ++m)
+        {
+            FbxSurfaceMaterial* Material = Node->GetMaterial(m);
+            FObjMaterialInfo MatInfo;
+
+            if (Material)
+            {
+                MatInfo.MaterialName = Material->GetName();
+                FbxProperty DiffuseProperty = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+                if (DiffuseProperty.IsValid())
+                {
+                    int TextureCount = DiffuseProperty.GetSrcObjectCount<FbxFileTexture>();
+                    if (TextureCount > 0)
+                    {
+                        FbxFileTexture* Texture = DiffuseProperty.GetSrcObject<FbxFileTexture>(0);
+                        MatInfo.DiffuseTexturePath = ((FString)Texture->GetFileName()).ToWideString();
+                    }
+                }
+            }
+
+            OutMeshData.Materials.Add(MatInfo);
+        }
+
+        TArray<TArray<FBoneWeight>> VertexBoneWeights;
+        ExtractSkinning(Mesh, VertexBoneWeights);
+        ProcessSkeletalMesh(Mesh, OutMeshData, Scene, VertexBoneWeights);
+    }
+
+    // 재귀적으로 순회
+    for (int i = 0; i < Node->GetChildCount(); i++)
+    {
+        TraverseMeshNodes(Node->GetChild(i), OutMeshData, Scene);
+    }
 }
 
 

@@ -52,11 +52,13 @@ class FLoaderFBX
 {
 public:
     static bool ParseSkeletalMesh(const FString& FBXPath, FBX::FSkeletalMeshRenderData& OutMeshData);
+    static void TraverseMeshNodes(FbxNode* Node, FBX::FSkeletalMeshRenderData& OutMeshData, FbxScene* Scene);
 
 private:
     static void ExtractSkinning(FbxMesh* Mesh, TArray<TArray<FBX::FBoneWeight>>& OutVertexBoneWeights);
     static void ProcessSkeletalMesh(FbxMesh* Mesh, FBX::FSkeletalMeshRenderData& OutMeshData, FbxScene* Scene, const TArray<TArray<FBX::FBoneWeight>>& VertexBoneWeights);
     static void ExtractSkeleton(FbxScene* Scene, FBX::FSkeletalMeshRenderData& OutMeshData);
+
 
     static FVector ConvertVector(FbxVector4 Vec)
     {
