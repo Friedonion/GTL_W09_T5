@@ -123,11 +123,16 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     GEngine = FObjectFactory::ConstructObject<UEditorEngine>(nullptr);
     GEngine->Init();
 
-    USkeletalMesh* Mesh = FFBXImporter::LoadSkeletalMesh(TEXT("Contents/FBX/test.fbx"));
+    USkeletalMesh* Mesh = FFBXImporter::LoadSkeletalMesh(TEXT("Contents/FBX/Sharkry_Swimsuit.fbx"));
     AActor* Actor = GEngine->ActiveWorld->SpawnActor<AActor>();
     USkeletalMeshComponent* Comp = Actor->AddComponent<USkeletalMeshComponent>();
     Comp->SetSkeletalMesh(Mesh);
-
+    /*USkeletalMesh* Mesh2 = FFBXImporter::LoadSkeletalMesh(TEXT("Contents/FBX/Test.fbx"));
+    AActor* Actor2 = GEngine->ActiveWorld->SpawnActor<AActor>();
+    USkeletalMeshComponent* Comp2 = Actor2->AddComponent<USkeletalMeshComponent>();
+    Comp2->SetSkeletalMesh(Mesh2);
+    Comp2->AddLocation(FVector(70.0f,10.0f,10.0f));
+    Comp2->AddScale(FVector(100.0f, 100.0f, 100.0f));*/
     UpdateUI();
 
     return 0;

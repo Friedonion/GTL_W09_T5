@@ -68,6 +68,8 @@ void FLineRenderPass::PrepareLineShader() const
     Graphics->DeviceContext->VSSetShader(VertexLineShader, nullptr, 0);
     Graphics->DeviceContext->PSSetShader(PixelLineShader, nullptr, 0);
 
+    Graphics->DeviceContext->IASetInputLayout(ShaderManager->GetInputLayoutByKey(L"VertexLineShader"));
+
     FEngineLoop::PrimitiveDrawBatch.PrepareLineResources();
 }
 

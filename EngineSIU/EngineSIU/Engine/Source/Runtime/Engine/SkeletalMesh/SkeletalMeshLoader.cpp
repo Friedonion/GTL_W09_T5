@@ -44,10 +44,12 @@ static void ExtractSkeletonHierarchy(FSkeletalMeshData& OutMeshData, FbxNode* No
     }
 }
 
-static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* Skin)
+static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* Skin, FbxNode* Node)
 {
     const int ControlPointCount = Mesh->GetControlPointsCount();
     const FbxVector4* ControlPoints = Mesh->GetControlPoints();
+
+    const int VertexOffset = OutMeshData.Vertices.Num();
 
     TArray<FSkinnedVertex> Vertices;
     Vertices.SetNum(ControlPointCount);
@@ -59,7 +61,11 @@ static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* 
         {
             FbxCluster* Cluster = Skin->GetCluster(i);
             FString BoneName = Cluster->GetLink()->GetName();
-            int BoneIndex = OutMeshData.BoneNameToIndex[BoneName];
+
+            const int* FoundBoneIndex = OutMeshData.BoneNameToIndex.Find(BoneName);
+            if (!FoundBoneIndex) continue;
+            int BoneIndex = *FoundBoneIndex;
+
 
             int* Indices = Cluster->GetControlPointIndices();
             double* Weights = Cluster->GetControlPointWeights();
@@ -83,24 +89,65 @@ static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* 
         }
     }
 
-    // Position 저장
+    // Vertex Position 저장
     for (int i = 0; i < ControlPointCount; ++i)
     {
         Vertices[i].Position = ConvertFbxVector(ControlPoints[i]);
     }
 
-    // 삼각형 인덱스
+    // 삼각형 인덱스 저장 (offset 적용)
     const int PolygonCount = Mesh->GetPolygonCount();
     for (int i = 0; i < PolygonCount; ++i)
     {
         for (int j = 0; j < 3; ++j)
         {
             int VertexIndex = Mesh->GetPolygonVertex(i, j);
-            OutMeshData.Indices.Add(VertexIndex);
+            OutMeshData.Indices.Add(VertexOffset + VertexIndex);
         }
     }
+    for (const FSkinnedVertex& V : Vertices)
+    {
+        OutMeshData.Vertices.Add(V); // 또는 Add(V); 사용자 정의 TArray에 맞게
+    }
 
-    OutMeshData.Vertices = Vertices;
+
+    // 머티리얼 처리
+    FbxSurfaceMaterial* Material = Node->GetMaterial(0);
+    if (Material)
+    {
+        FSkeletalMeshMaterial MatData;
+        MatData.MaterialName = Material->GetName();
+
+        FbxProperty prop = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+        if (prop.IsValid())
+        {
+            FbxFileTexture* Texture = prop.GetSrcObject<FbxFileTexture>(0);
+            if (Texture)
+            {
+                MatData.DiffuseTexturePath = Texture->GetFileName();
+            }
+        }
+
+        OutMeshData.Materials.Add(MatData);
+    }
+}
+
+static void TraverseAndExtractMeshes(FSkeletalMeshData& OutMeshData, FbxNode* Node)
+{
+    if (!Node) return;
+
+    FbxMesh* Mesh = Node->GetMesh();
+    if (Mesh && Mesh->GetPolygonCount() > 0)
+    {
+        const int DeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
+        FbxSkin* Skin = (DeformerCount > 0) ? static_cast<FbxSkin*>(Mesh->GetDeformer(0)) : nullptr;
+        ExtractMesh(OutMeshData, Mesh, Skin, Node);
+    }
+
+    for (int i = 0; i < Node->GetChildCount(); ++i)
+    {
+        TraverseAndExtractMeshes(OutMeshData, Node->GetChild(i));
+    }
 }
 
 USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
@@ -110,7 +157,7 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
     SdkManager->SetIOSettings(ios);
 
     FbxImporter* Importer = FbxImporter::Create(SdkManager, "");
-    if (!Importer->Initialize((*FilePath), -1, SdkManager->GetIOSettings()))
+    if (!Importer->Initialize(*FilePath, -1, SdkManager->GetIOSettings()))
     {
         UE_LOG(LogLevel::Error, TEXT("FBX Import Failed: %s"), *FilePath);
         return nullptr;
@@ -125,44 +172,16 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
     // 본 추출
     ExtractSkeletonHierarchy(MeshData, Scene->GetRootNode(), -1);
 
-    // 메시 찾기
-    FbxNode* RootNode = Scene->GetRootNode();
-    for (int i = 0; i < RootNode->GetChildCount(); ++i)
+    // 메시 추출 (재귀 순회)
+    TraverseAndExtractMeshes(MeshData, Scene->GetRootNode());
+    for (const auto& Vertex : MeshData.Vertices)
     {
-        FbxNode* Child = RootNode->GetChild(i);
-        FbxMesh* Mesh = Child->GetMesh();
-        if (!Mesh) continue;
-
-        const int DeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
-        if (DeformerCount > 0)
-        {
-            FbxSkin* Skin = static_cast<FbxSkin*>(Mesh->GetDeformer(0));
-            ExtractMesh(MeshData, Mesh, Skin);
-        }
-        FbxSurfaceMaterial* Material = Child->GetMaterial(0);
-        if (Material)
-        {
-            FSkeletalMeshMaterial MatData;
-            MatData.MaterialName = Material->GetName();
-
-            // Diffuse 텍스처 경로 추출
-            FbxProperty prop = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-            if (prop.IsValid())
-            {
-                FbxFileTexture* Texture = prop.GetSrcObject<FbxFileTexture>(0);
-                if (Texture)
-                {
-                    MatData.DiffuseTexturePath = Texture->GetFileName();
-                }
-            }
-
-            MeshData.Materials.Add(MatData);
-        }
-
+        UE_LOG(LogLevel::Display, TEXT("Vertex Pos: %s"), *Vertex.Position.ToString());
+        UE_LOG(LogLevel::Display, TEXT("Bones: %d,%d,%d,%d  Weights: %.2f %.2f %.2f %.2f"),
+            Vertex.BoneIndices[0], Vertex.BoneIndices[1], Vertex.BoneIndices[2], Vertex.BoneIndices[3],
+            Vertex.BoneWeights[0], Vertex.BoneWeights[1], Vertex.BoneWeights[2], Vertex.BoneWeights[3]);
     }
-
     // SkeletalMesh 생성
-    //USkeletalMesh* NewMesh = NewObject<USkeletalMesh>();
     USkeletalMesh* NewMesh = FObjectFactory::ConstructObject<USkeletalMesh>(nullptr);
     NewMesh->SetSkeletalMeshData(MeshData);
 
