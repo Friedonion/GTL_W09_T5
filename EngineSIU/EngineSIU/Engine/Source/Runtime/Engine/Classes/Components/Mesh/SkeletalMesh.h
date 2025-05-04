@@ -22,7 +22,6 @@ public:
     uint32 GetMaterialIndex(FName MaterialSlotName) const;
     void GetUsedMaterials(TArray<UMaterial*>& Out) const;
 
-private:
     FBX::FSkeletalMeshRenderData* SkeletalMeshRenderData = nullptr;
     TArray<FStaticMaterial*> Materials;
 };

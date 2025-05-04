@@ -45,113 +45,142 @@ bool FLoaderFBX::ParseSkeletalMesh(const FString& FBXPath, FSkeletalMeshRenderDa
 }
 
 
-void FLoaderFBX::ProcessSkeletalMesh(FbxMesh* Mesh, FSkeletalMeshRenderData& OutMeshData, FbxScene* Scene, const TArray<TArray<FBoneWeight>>& VertexBoneWeights)
+
+void FLoaderFBX::ProcessSkeletalMesh(
+    FbxMesh* Mesh,
+    FBX::FSkeletalMeshRenderData& OutMeshData,
+    FbxScene* Scene,
+    const TArray<TArray<FBoneWeight>>& VertexBoneWeights)
 {
+    // 제어점과 폴리곤 개수
     FbxVector4* ControlPoints = Mesh->GetControlPoints();
     int PolygonCount = Mesh->GetPolygonCount();
 
-    FbxNode* Node = Mesh->GetNode();
+    // FBX 재질 레이어
     FbxLayerElementMaterial* MaterialElement = Mesh->GetElementMaterial();
 
-    // CPIndex + polygonVertexIdx 기준으로 유일한 정점 생성
+    // (1) 정점 중복 방지용 키 → 버텍스 인덱스
     TMap<FString, int> VertexMap;
+    // (2) 재질별 인덱스 버퍼
+    TMap<int, TArray<uint32>> MatToIndices;
+    MatToIndices.Empty();
 
-    for (int i = 0; i < PolygonCount; i++)
+    // --- 폴리곤(삼각형) 순회 ---
+    for (int poly = 0; poly < PolygonCount; ++poly)
     {
-        if (Mesh->GetPolygonSize(i) != 3) continue;
+        if (Mesh->GetPolygonSize(poly) != 3)
+            continue;
 
-        int MaterialIndex = 0;
-        if (MaterialElement && MaterialElement->GetMappingMode() == FbxLayerElement::eByPolygon)
+        // —— 재질 인덱스 결정 —— 
+        int MatIndex = 0;
+        if (MaterialElement)
         {
-            MaterialIndex = MaterialElement->GetIndexArray().GetAt(i);
+            auto mapping = MaterialElement->GetMappingMode();
+            auto& indexArray = MaterialElement->GetIndexArray();
+            switch (mapping)
+            {
+            case FbxLayerElement::eAllSame:
+                MatIndex = indexArray.GetAt(0);
+                break;
+            case FbxLayerElement::eByControlPoint:
+            {
+                int cp0 = Mesh->GetPolygonVertex(poly, 0);
+                MatIndex = indexArray.GetAt(cp0);
+            }
+            break;
+            case FbxLayerElement::eByPolygon:
+                MatIndex = indexArray.GetAt(poly);
+                break;
+            case FbxLayerElement::eByPolygonVertex:
+            {
+                // 폴리곤-버텍스 단위 매핑: 여기서는 첫 번째 버텍스만 써서 그룹화
+                MatIndex = indexArray.GetAt(poly * 3 + 0);
+            }
+            break;
+            default:
+                MatIndex = 0;
+                break;
+            }
         }
 
-        // 역순으로 삼각형 추가 (backface culling 대응)
-        for (int j = 2; j >= 0; j--)
+        // —— 삼각형 빌드 (역순으로 넣어 와인딩 고정) ——
+        for (int j = 2; j >= 0; --j)
         {
-            int CPIndex = Mesh->GetPolygonVertex(i, j);
+            int cpIndex = Mesh->GetPolygonVertex(poly, j);
 
-            // 고유 키: CPIndex + UVIndex + NormalIndex 등
-            FString Key = FString::Printf(TEXT("%d_%d_%d"), CPIndex, i, j);
-            int* CachedIndex = VertexMap.Find(Key);
-            if (CachedIndex)
+            // ## 1) 키 생성
+            FString Key = FString::Printf(TEXT("%d_%d_%d"), cpIndex, poly, j);
+
+            // ## 2) 신규 정점이면 생성
+            int NewIndex;
+            if (!VertexMap.Contains(Key))
             {
-                OutMeshData.Indices.Add(*CachedIndex);
-                continue;
+                NewIndex = OutMeshData.Vertices.Num();
+
+                // 정점 데이터 채우기
+                FSkeletalMeshVertex Vertex = {};
+                FVector P = ConvertVector(ControlPoints[cpIndex]);
+                Vertex.X = P.X; Vertex.Y = P.Y; Vertex.Z = P.Z;
+
+                // 법선
+                FbxVector4 N; Mesh->GetPolygonVertexNormal(poly, j, N);
+                FVector NV = ConvertVector(N);
+                Vertex.NormalX = NV.X; Vertex.NormalY = NV.Y; Vertex.NormalZ = NV.Z;
+
+                // UV (첫 UV 세트만 예시)
+                FbxStringList UVSets; Mesh->GetUVSetNames(UVSets);
+                if (UVSets.GetCount() > 0)
+                {
+                    FbxVector2 UV; bool unmapped;
+                    Mesh->GetPolygonVertexUV(poly, j, UVSets[0], UV, unmapped);
+                    Vertex.U = UV[0]; Vertex.V = UV[1];
+                }
+
+                // 스키닝 정보
+                const auto& Weights = VertexBoneWeights[cpIndex];
+                for (int w = 0; w < Weights.Num() && w < 4; ++w)
+                {
+                    Vertex.BoneIndices[w] = Weights[w].BoneIndex;
+                    Vertex.BoneWeights[w] = Weights[w].Weight;
+                }
+
+                // 재질 인덱스 (디버깅/디버티스팅용)
+                Vertex.MaterialIndex = MatIndex;
+
+                OutMeshData.Vertices.Add(Vertex);
+                VertexMap.Add(Key, NewIndex);
+            }
+            else
+            {
+                NewIndex = VertexMap[Key];
             }
 
-            FSkeletalMeshVertex Vertex = {};
-            FVector Position = ConvertVector(ControlPoints[CPIndex]);
-            Vertex.X = Position.X;
-            Vertex.Y = Position.Y;
-            Vertex.Z = Position.Z;
-
-            // Normal
-            FbxVector4 Normal;
-            Mesh->GetPolygonVertexNormal(i, j, Normal);
-            FVector NormalV = ConvertVector(Normal);
-            Vertex.NormalX = NormalV.X;
-            Vertex.NormalY = NormalV.Y;
-            Vertex.NormalZ = NormalV.Z;
-
-            // UV
-            FbxStringList UVSets;
-            Mesh->GetUVSetNames(UVSets);
-            if (UVSets.GetCount() > 0)
-            {
-                FbxVector2 UV;
-                bool Unmapped;
-                Mesh->GetPolygonVertexUV(i, j, UVSets[0], UV, Unmapped);
-                FVector2D UVConv = ConvertUV(UV);
-                Vertex.U = UVConv.X;
-                Vertex.V = UVConv.Y;
-            }
-
-            Vertex.R = Vertex.G = Vertex.B = 0.7f;
-            Vertex.A = 1.0f;
-            Vertex.MaterialIndex = MaterialIndex;
-
-            const auto& Weights = VertexBoneWeights[CPIndex];
-            for (int w = 0; w < Weights.Num() && w < 4; ++w)
-            {
-                Vertex.BoneIndices[w] = Weights[w].BoneIndex;
-                Vertex.BoneWeights[w] = Weights[w].Weight;
-            }
-
-            int NewIndex = OutMeshData.Vertices.Num();
-            OutMeshData.Vertices.Add(Vertex);
-            OutMeshData.Indices.Add(NewIndex);
-            VertexMap.Add(Key, NewIndex);
+            // ## 3) 해당 재질 버킷에 인덱스 추가
+            MatToIndices.FindOrAdd(MatIndex).Add(NewIndex);
         }
     }
 
-    // Submesh 분할
-    TMap<int, FMaterialSubset> MaterialIndexToSubset;
-
-    for (int i = 0; i < OutMeshData.Indices.Num(); i += 3)
+    // --- 재질별로 플래트닝 & 서브셋 생성 ---
+    uint32 Offset = 0;
+    for (auto& Pair : MatToIndices)
     {
-        int TriangleIdx0 = OutMeshData.Indices[i];
-        int MatIndex = OutMeshData.Vertices[TriangleIdx0].MaterialIndex;
+        int SubMatIdx = Pair.Key;
+        TArray<uint32>& Idxs = Pair.Value;
 
-        if (!MaterialIndexToSubset.Contains(MatIndex))
-        {
-            FMaterialSubset Subset;
-            Subset.MaterialIndex = MatIndex;
-            Subset.IndexStart = i;
-            Subset.IndexCount = 3;
-            MaterialIndexToSubset.Add(MatIndex, Subset);
-        }
-        else
-        {
-            MaterialIndexToSubset[MatIndex].IndexCount += 3;
-        }
-    }
+        FMaterialSubset Subset;
+        Subset.MaterialIndex = SubMatIdx;
+        Subset.IndexStart = Offset;
+        Subset.IndexCount = Idxs.Num();
+        OutMeshData.MaterialSubsets.Add(Subset);
 
-    for (auto& Pair : MaterialIndexToSubset)
-    {
-        OutMeshData.MaterialSubsets.Add(Pair.Value);
+        for (uint32 Idx : Idxs)
+        {
+            OutMeshData.Indices.Add(Idx);
+        }
+        Offset += Idxs.Num();
     }
 }
+
 
 
 
@@ -250,8 +279,19 @@ USkeletalMesh* FManagerFBX::CreateSkeletalMesh(const FString& PathFileName)
 
     USkeletalMesh* NewMesh = FObjectFactory::ConstructObject<USkeletalMesh>(nullptr);
     NewMesh->SetData(RenderData);
+
+    // --- FStaticMaterial 로 변환 및 설정 ---
+    for (auto& MatInfo : RenderData->Materials)
+    {
+        FStaticMaterial* StaticMat = new FStaticMaterial;
+        StaticMat->Material = FManagerOBJ::GetMaterial(MatInfo.MaterialName);
+        StaticMat->MaterialSlotName = FName(*MatInfo.MaterialName);
+        NewMesh->Materials.Add(StaticMat);
+    }
+
     return NewMesh;
 }
+
 
 void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMeshData, FbxScene* Scene)
 {
@@ -259,25 +299,29 @@ void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMe
     {
         FbxMesh* Mesh = Node->GetMesh();
 
-        // 기존 머터리얼 로직 복붙
+        TSet<FString> AddedMaterials;
         int MaterialCount = Node->GetMaterialCount();
         for (int m = 0; m < MaterialCount; ++m)
         {
             FbxSurfaceMaterial* Material = Node->GetMaterial(m);
-            FObjMaterialInfo MatInfo;
+            if (!Material) continue;
 
-            if (Material)
+            FString MatName = Material->GetName();
+            if (AddedMaterials.Contains(MatName)) continue;
+            AddedMaterials.Add(MatName);
+
+            FObjMaterialInfo MatInfo;
+            MatInfo.MaterialName = MatName;
+
+            FbxProperty DiffuseProperty = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+            if (DiffuseProperty.IsValid())
             {
-                MatInfo.MaterialName = Material->GetName();
-                FbxProperty DiffuseProperty = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-                if (DiffuseProperty.IsValid())
+                int TextureCount = DiffuseProperty.GetSrcObjectCount<FbxFileTexture>();
+                if (TextureCount > 0)
                 {
-                    int TextureCount = DiffuseProperty.GetSrcObjectCount<FbxFileTexture>();
-                    if (TextureCount > 0)
-                    {
-                        FbxFileTexture* Texture = DiffuseProperty.GetSrcObject<FbxFileTexture>(0);
-                        MatInfo.DiffuseTexturePath = ((FString)Texture->GetFileName()).ToWideString();
-                    }
+                    FbxFileTexture* Texture = DiffuseProperty.GetSrcObject<FbxFileTexture>(0);
+                    MatInfo.DiffuseTexturePath = ((FString)Texture->GetFileName()).ToWideString();
+                    MatInfo.DiffuseTextureName = Texture->GetName();
                 }
             }
 
@@ -289,12 +333,12 @@ void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMe
         ProcessSkeletalMesh(Mesh, OutMeshData, Scene, VertexBoneWeights);
     }
 
-    // 재귀적으로 순회
     for (int i = 0; i < Node->GetChildCount(); i++)
     {
         TraverseMeshNodes(Node->GetChild(i), OutMeshData, Scene);
     }
 }
+
 
 
 
