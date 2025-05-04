@@ -4,6 +4,7 @@
 #include "Define.h"
 #include "USkeletalMesh.h"
 #include "Components/Material/Material.h"
+#include "Container/MapUtils.h"
 #include "Engine/FLoaderOBJ.h"
 #include "Math/Matrix.h"
 #include "UObject/ObjectFactory.h"
@@ -212,23 +213,11 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
     MeshData.MaterialSubsets.Empty();
 
     // 정렬
-    TArray<uint32> SortedKeys;
-    for (const auto& Pair : SubmeshIndexMap)
-    {
-        SortedKeys.Add(Pair.Key);
-    }
-    for (int i = 0; i < SortedKeys.Num(); ++i)
-    {
-        for (int j = i + 1; j < SortedKeys.Num(); ++j)
+    TArray<uint32> SortedKeys = GetMapKeys(SubmeshIndexMap);
+    SortedKeys.Sort([](uint32 A, uint32 B)
         {
-            if (SortedKeys[j] < SortedKeys[i])
-            {
-                uint32 Temp = SortedKeys[i];
-                SortedKeys[i] = SortedKeys[j];
-                SortedKeys[j] = Temp;
-            }
-        }
-    }
+            return A < B;
+        });
 
     // Submesh 정보 적용
     for (uint32 MatIndex : SortedKeys)

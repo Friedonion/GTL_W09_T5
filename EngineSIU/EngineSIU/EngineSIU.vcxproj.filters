@@ -1079,6 +1079,7 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\FFBXImporter.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Utils\FPaths.h" />
+    <ClInclude Include="Engine\Source\Runtime\Core\Container\MapUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SlateShader.hlsl" />

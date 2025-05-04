@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <unordered_map>
 
 #include "ContainerAllocator.h"
@@ -178,6 +178,7 @@ public:
     {
         ContainerPrivate.reserve(Number);
     }
+
 };
 
 template <typename KeyType, typename ValueType, typename Allocator>

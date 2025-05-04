@@ -433,6 +433,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Source\Runtime\Core\Container\MapUtils.h" />
     <ClInclude Include="Engine\Source\Runtime\Core\Math\Interpolator.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Actors\CameraActor.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Camera\CameraModifier.h" />

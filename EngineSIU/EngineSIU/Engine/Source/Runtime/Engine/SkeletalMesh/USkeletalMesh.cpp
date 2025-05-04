@@ -3,6 +3,7 @@
 #include "EngineLoop.h"
 #include "SkeletalMeshTypes.h"
 #include "Components/Material/Material.h"
+#include "Container/MapUtils.h"
 #include "Engine/FLoaderOBJ.h"
 
 USkeletalMesh::USkeletalMesh() {}
@@ -110,24 +111,11 @@ void USkeletalMesh::SetSkeletalMeshData(const FSkeletalMeshData& InData)
     }
 
     // 키 수집 및 수동 정렬
-    TArray<uint32> SortedKeys;
-    for (const auto& Pair : SubmeshIndexMap)
-    {
-        SortedKeys.Add(Pair.Key);
-    }
-    // 기본 삽입 정렬 (크기 작을 경우 효율적)
-    for (int i = 0; i < SortedKeys.Num(); ++i)
-    {
-        for (int j = i + 1; j < SortedKeys.Num(); ++j)
+    TArray<uint32> SortedKeys = GetMapKeys(SubmeshIndexMap);
+    SortedKeys.Sort([](uint32 A, uint32 B)
         {
-            if (SortedKeys[j] < SortedKeys[i])
-            {
-                uint32 Temp = SortedKeys[i];
-                SortedKeys[i] = SortedKeys[j];
-                SortedKeys[j] = Temp;
-            }
-        }
-    }
+            return A < B;
+        });
 
     // 인덱스 및 서브셋 적용
     RenderData->Indices.Empty();
