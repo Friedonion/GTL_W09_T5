@@ -123,7 +123,7 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     GEngine = FObjectFactory::ConstructObject<UEditorEngine>(nullptr);
     GEngine->Init();
 
-    USkeletalMesh* Mesh = FFBXImporter::LoadSkeletalMesh(TEXT("Contents/FBX/Sharkry_Swimsuit.fbx"));
+    USkeletalMesh* Mesh = FFBXImporter::LoadSkeletalMesh(TEXT("Contents/FBX/Sharkry_Swimsuit_Submesh/Sharkry_Swimsuit_Submesh.fbx"));
     AActor* Actor = GEngine->ActiveWorld->SpawnActor<AActor>();
     USkeletalMeshComponent* Comp = Actor->AddComponent<USkeletalMeshComponent>();
     Comp->SetSkeletalMesh(Mesh);
