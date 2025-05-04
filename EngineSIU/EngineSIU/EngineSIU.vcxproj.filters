@@ -822,6 +822,7 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\SkeletalMesh\FFBXImporter.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Utils\FPaths.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="EngineSIU.natvis" />
@@ -1077,6 +1078,7 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMeshComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkinnedMeshComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\FFBXImporter.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Utils\FPaths.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SlateShader.hlsl" />

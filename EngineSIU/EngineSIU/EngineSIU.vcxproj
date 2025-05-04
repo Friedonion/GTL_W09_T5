@@ -280,6 +280,7 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\SkeletalMesh\USkeletalMesh.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\UnrealClient.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\UserInterface\Console.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Utils\FPaths.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\ViewportClient.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\World\World.cpp" />
     <ClCompile Include="Engine\Source\Runtime\InputCore\InputCoreTypes.cpp" />
@@ -565,6 +566,7 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\SkeletalMesh\USkeletalMesh.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\UnrealClient.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\UserInterface\Console.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Utils\FPaths.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\ViewportClient.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\World\World.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\World\WorldContext.h" />

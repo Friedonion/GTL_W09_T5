@@ -211,6 +211,8 @@ public:
      *         Count가 문자열 길이보다 크거나 같으면 빈 문자열을 반환합니다.
      */
     FString RightChop(int32 Count) const;
+    FString Left(int32 Count) const;
+    FString Replace(const FString& From, const FString& To) const;
 
 public:
     FORCEINLINE int32 Len() const;

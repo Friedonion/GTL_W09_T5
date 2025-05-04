@@ -63,6 +63,43 @@ FString FString::RightChop(int32 Count) const
     // std::move를 사용하면 불필요한 복사를 피할 수 있습니다 (C++11 이상).
     return FString(std::move(Substring));
 }
+FString FString::Left(int32 Count) const
+{
+    const int32 MyLen = Len();
+
+    if (Count <= 0)
+    {
+        return FString(); // 빈 문자열
+    }
+
+    if (Count >= MyLen)
+    {
+        return *this; // 원본 복사
+    }
+
+    // substr(start_index, length)
+    BaseStringType Sub = PrivateString.substr(0, static_cast<size_t>(Count));
+    return FString(std::move(Sub));
+}
+
+FString FString::Replace(const FString& From, const FString& To) const
+{
+    if (From.IsEmpty())
+        return *this;
+
+    BaseStringType Result = PrivateString;
+    size_t pos = 0;
+    const auto& FromStr = From.PrivateString;
+    const auto& ToStr = To.PrivateString;
+
+    while ((pos = Result.find(FromStr, pos)) != BaseStringType::npos)
+    {
+        Result.replace(pos, FromStr.length(), ToStr);
+        pos += ToStr.length(); // Replace 후 다음 위치로 이동
+    }
+
+    return FString(std::move(Result));
+}
 
 void FString::Empty()
 {

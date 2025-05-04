@@ -3,8 +3,11 @@
 
 #include "Define.h"
 #include "USkeletalMesh.h"
+#include "Components/Material/Material.h"
+#include "Engine/FLoaderOBJ.h"
 #include "Math/Matrix.h"
 #include "UObject/ObjectFactory.h"
+#include "Utils/FPaths.h"
 
 static FVector ConvertFbxVector(const FbxVector4& vec)
 {
@@ -44,7 +47,7 @@ static void ExtractSkeletonHierarchy(FSkeletalMeshData& OutMeshData, FbxNode* No
     }
 }
 
-static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* Skin, FbxNode* Node)
+static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* Skin, FbxNode* Node, const FString& FilePath)
 {
     const int ControlPointCount = Mesh->GetControlPointsCount();
     const FbxVector4* ControlPoints = Mesh->GetControlPoints();
@@ -94,7 +97,21 @@ static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* 
     {
         Vertices[i].Position = ConvertFbxVector(ControlPoints[i]);
     }
-
+    // UV 좌표 추출
+    FbxGeometryElementUV* UVElement = Mesh->GetElementUV();
+    if (UVElement && UVElement->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+    {
+        for (int polyIndex = 0; polyIndex < Mesh->GetPolygonCount(); ++polyIndex)
+        {
+            for (int vertIndex = 0; vertIndex < 3; ++vertIndex)
+            {
+                int ctrlPtIndex = Mesh->GetPolygonVertex(polyIndex, vertIndex);
+                int uvIndex = Mesh->GetTextureUVIndex(polyIndex, vertIndex);
+                FbxVector2 fbxUV = UVElement->GetDirectArray().GetAt(uvIndex);
+                Vertices[ctrlPtIndex].UV = FVector2D(static_cast<float>(fbxUV[0]), 1.0f - static_cast<float>(fbxUV[1]));
+            }
+        }
+    }
     // 삼각형 인덱스 저장 (offset 적용)
     const int PolygonCount = Mesh->GetPolygonCount();
     for (int i = 0; i < PolygonCount; ++i)
@@ -115,24 +132,16 @@ static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* 
     FbxSurfaceMaterial* Material = Node->GetMaterial(0);
     if (Material)
     {
-        FSkeletalMeshMaterial MatData;
-        MatData.MaterialName = Material->GetName();
-
-        FbxProperty prop = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-        if (prop.IsValid())
+        UMaterial* NewMaterial = FSkeletalMeshLoader::CreateMaterialFromFbx(Material, FilePath);
+        if (NewMaterial)
         {
-            FbxFileTexture* Texture = prop.GetSrcObject<FbxFileTexture>(0);
-            if (Texture)
-            {
-                MatData.DiffuseTexturePath = Texture->GetFileName();
-            }
+            OutMeshData.Materials.Add(NewMaterial); // Materials는 TArray<UMaterial*> 여야 함
         }
-
-        OutMeshData.Materials.Add(MatData);
     }
+
 }
 
-static void TraverseAndExtractMeshes(FSkeletalMeshData& OutMeshData, FbxNode* Node)
+static void TraverseAndExtractMeshes(FSkeletalMeshData& OutMeshData, FbxNode* Node, const FString& FilePath)
 {
     if (!Node) return;
 
@@ -141,13 +150,14 @@ static void TraverseAndExtractMeshes(FSkeletalMeshData& OutMeshData, FbxNode* No
     {
         const int DeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
         FbxSkin* Skin = (DeformerCount > 0) ? static_cast<FbxSkin*>(Mesh->GetDeformer(0)) : nullptr;
-        ExtractMesh(OutMeshData, Mesh, Skin, Node);
+        ExtractMesh(OutMeshData, Mesh, Skin, Node,FilePath);
     }
 
     for (int i = 0; i < Node->GetChildCount(); ++i)
     {
-        TraverseAndExtractMeshes(OutMeshData, Node->GetChild(i));
+        TraverseAndExtractMeshes(OutMeshData, Node->GetChild(i),FilePath);
     }
+
 }
 
 USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
@@ -173,7 +183,7 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
     ExtractSkeletonHierarchy(MeshData, Scene->GetRootNode(), -1);
 
     // 메시 추출 (재귀 순회)
-    TraverseAndExtractMeshes(MeshData, Scene->GetRootNode());
+    TraverseAndExtractMeshes(MeshData, Scene->GetRootNode(),FilePath);
     for (const auto& Vertex : MeshData.Vertices)
     {
         UE_LOG(LogLevel::Display, TEXT("Vertex Pos: %s"), *Vertex.Position.ToString());
@@ -187,4 +197,87 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
 
     SdkManager->Destroy();
     return NewMesh;
+}
+UMaterial* FSkeletalMeshLoader::CreateMaterialFromFbx(FbxSurfaceMaterial* FbxMat, const FString& FbxFilePath)
+{
+    if (!FbxMat)
+        return nullptr;
+
+    UMaterial* NewMaterial = FObjectFactory::ConstructObject<UMaterial>(nullptr);
+    if (!NewMaterial)
+        return nullptr;
+
+    FObjMaterialInfo MatInfo;
+    MatInfo.MaterialName = FbxMat->GetName();
+
+    auto ExtractColor = [](FbxProperty Prop, FVector& OutColor)
+        {
+            if (Prop.IsValid())
+            {
+                FbxDouble3 Color = Prop.Get<FbxDouble3>();
+                OutColor = FVector(static_cast<float>(Color[0]), static_cast<float>(Color[1]), static_cast<float>(Color[2]));
+            }
+        };
+
+    ExtractColor(FbxMat->FindProperty(FbxSurfaceMaterial::sDiffuse), MatInfo.Diffuse);
+    ExtractColor(FbxMat->FindProperty(FbxSurfaceMaterial::sSpecular), MatInfo.Specular);
+    ExtractColor(FbxMat->FindProperty(FbxSurfaceMaterial::sEmissive), MatInfo.Emissive);
+
+    // Transparency
+    FbxProperty TransparencyProp = FbxMat->FindProperty(FbxSurfaceMaterial::sTransparencyFactor);
+    if (TransparencyProp.IsValid())
+    {
+        double Transparency = TransparencyProp.Get<FbxDouble>();
+        MatInfo.TransparencyScalar = static_cast<float>(Transparency);
+        MatInfo.bTransparent = (Transparency < 1.0f);
+    }
+
+    // Shininess
+    FbxProperty ShininessProp = FbxMat->FindProperty(FbxSurfaceMaterial::sShininess);
+    if (ShininessProp.IsValid())
+    {
+        double Shininess = ShininessProp.Get<FbxDouble>();
+        MatInfo.SpecularScalar = static_cast<float>(Shininess);
+    }
+
+    // Diffuse Texture
+    FbxProperty DiffuseProp = FbxMat->FindProperty(FbxSurfaceMaterial::sDiffuse);
+    if (DiffuseProp.IsValid())
+    {
+        FbxFileTexture* Texture = DiffuseProp.GetSrcObject<FbxFileTexture>(0);
+        if (Texture)
+        {
+            FString AbsPath = Texture->GetFileName();
+            FString RelPath = Texture->GetRelativeFileName();
+
+            FWString TexturePath;
+            if (!RelPath.IsEmpty())
+            {
+                FString BaseFolder;
+                int32 LastSlash = FbxFilePath.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+                if (LastSlash != -1)
+                {
+                    BaseFolder = FbxFilePath.Left(LastSlash);
+                }
+
+                FString CombinedPath = BaseFolder + TEXT("/") + RelPath;
+                CombinedPath = CombinedPath.Replace(TEXT("\\"), TEXT("/"));
+
+                TexturePath = CombinedPath.ToWideString();
+            }
+            else
+            {
+                TexturePath = AbsPath.ToWideString();
+            }
+
+            MatInfo.DiffuseTexturePath = TexturePath;
+            MatInfo.DiffuseTextureName = (FPaths::GetCleanFilename(FString(TexturePath)));
+            MatInfo.TextureFlag |= (1 << 1);
+
+            FLoaderOBJ::CreateTextureFromFile(TexturePath);
+        }
+    }
+    //MatInfo.DiffuseTexturePath = L"C:/Users/Jungle/Documents/GitHub/GTL_W09_T5/EngineSIU/EngineSIU/Contents/FBX/Textures/Atlas_00001.png";
+    NewMaterial->SetMaterialInfo(MatInfo);
+    return NewMaterial;
 }

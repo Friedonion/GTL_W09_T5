@@ -2,6 +2,8 @@
 
 #include "SkinnedMeshComponent.h"
 
+struct FSkinnedVertex;
+
 class USkeletalMeshComponent : public USkinnedMeshComponent
 {
     DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
@@ -13,9 +15,14 @@ public:
     virtual void InitializeComponent() override;
 
     // RenderPass가 호출
-    void GetSkinnedVertexIndexBuffers(TArray<FVector>& OutVertices, TArray<uint32>& OutIndices) const;
+    void GetSkinnedVertexIndexBuffers(
+        TArray<FStaticMeshVertex>& OutVertices, TArray<uint32>& OutIndices) const;
 
+    int GetSelectedSubMeshIndex() const { return SelectedSubMeshIndex; }
+    void SetSelectedSubMeshIndex(int Index) { SelectedSubMeshIndex = Index; }
 private:
-    mutable TArray<FVector> CachedSkinnedPositions; // 렌더패스에서 매 프레임 호출 시 계산되게
+    mutable mutable TArray<FStaticMeshVertex> CachedSkinnedVertices;
+    
     mutable bool bIsSkinnedCacheDirty = true;
+    int SelectedSubMeshIndex = 0;
 };

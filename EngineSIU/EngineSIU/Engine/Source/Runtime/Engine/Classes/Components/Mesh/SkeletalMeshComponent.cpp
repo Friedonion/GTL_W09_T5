@@ -20,19 +20,20 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     bIsSkinnedCacheDirty = true; // 다음 프레임에 스킨 갱신
 }
 
-void USkeletalMeshComponent::GetSkinnedVertexIndexBuffers(TArray<FVector>& OutVertices, TArray<uint32>& OutIndices) const
+void USkeletalMeshComponent::GetSkinnedVertexIndexBuffers(
+    TArray<FStaticMeshVertex>& OutVertices, TArray<uint32>& OutIndices) const
 {
     if (!SkeletalMesh) return;
 
     if (bIsSkinnedCacheDirty)
     {
-        const auto& Vertices = SkeletalMesh->GetVertices();
+        const auto& InVerts = SkeletalMesh->GetVertices();
         const auto& Bones = SkeletalMesh->GetBones();
 
-        FCPUSkinningUtil::ApplySkinning(Vertices, Bones, CachedSkinnedPositions);
+        FCPUSkinningUtil::ApplySkinning(InVerts, Bones, CachedSkinnedVertices);
         bIsSkinnedCacheDirty = false;
     }
 
-    OutVertices = CachedSkinnedPositions;
+    OutVertices = CachedSkinnedVertices;
     OutIndices = SkeletalMesh->GetIndices();
 }

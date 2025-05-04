@@ -27,6 +27,9 @@
 #include "UnrealEd/EditorViewportClient.h"
 #include "Components/Light/PointLightComponent.h"
 #include "Components/Mesh/SkeletalMeshComponent.h"
+#include "SkeletalMesh/CPUSkinningUtil.h"
+#include "SkeletalMesh/SkeletalMeshTypes.h"
+#include "SkeletalMesh/USkeletalMesh.h"
 
 FStaticMeshRenderPass::FStaticMeshRenderPass()
     : VertexShader(nullptr)
@@ -374,64 +377,71 @@ void FStaticMeshRenderPass::RenderAllSkeletalMeshes(const std::shared_ptr<FViewp
     for (USkeletalMeshComponent* Comp : SkeletalMeshComponents)
     {
         if (!Comp || !Comp->GetSkeletalMesh())
-        {
             continue;
-        }
 
-        // 1. CPU Skinning 결과 버텍스/인덱스 획득
-        TArray<FVector> SkinnedVertices;
+        USkeletalMesh* SkeletalMesh = Comp->GetSkeletalMesh();
+        OBJ::FStaticMeshRenderData* RenderData = SkeletalMesh->GetRenderData();
+
+        // CPU 스키닝 결과를 가져옴
+        TArray<FStaticMeshVertex> SkinnedVertices;
         TArray<uint32> SkinnedIndices;
         Comp->GetSkinnedVertexIndexBuffers(SkinnedVertices, SkinnedIndices);
 
-        if (SkinnedVertices.Num() == 0 || SkinnedIndices.Num() == 0)
-        {
+        if (SkinnedVertices.IsEmpty() || SkinnedIndices.IsEmpty())
             continue;
-        }
 
-        // 2. GPU용 버퍼 생성
         ID3D11Buffer* VertexBuffer = nullptr;
         ID3D11Buffer* IndexBuffer = nullptr;
 
-        D3D11_BUFFER_DESC vbDesc = {};
-        vbDesc.Usage = D3D11_USAGE_DEFAULT;
-        vbDesc.ByteWidth = sizeof(FVector) * SkinnedVertices.Num();
-        vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-
-        D3D11_SUBRESOURCE_DATA vbData = {};
-        vbData.pSysMem = SkinnedVertices.GetData();
-
-        HRESULT hr = Graphics->Device->CreateBuffer(&vbDesc, &vbData, &VertexBuffer);
-        if (FAILED(hr))
+        // VertexBuffer 생성
         {
-            UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal vertex buffer"));
-            continue;
+            D3D11_BUFFER_DESC vbDesc = {};
+            vbDesc.Usage = D3D11_USAGE_DEFAULT;
+            vbDesc.ByteWidth = sizeof(FStaticMeshVertex) * SkinnedVertices.Num();
+            vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+            D3D11_SUBRESOURCE_DATA vbData = {};
+            vbData.pSysMem = SkinnedVertices.GetData();
+
+            HRESULT hr = Graphics->Device->CreateBuffer(&vbDesc, &vbData, &VertexBuffer);
+            if (FAILED(hr))
+            {
+                UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal vertex buffer"));
+                continue;
+            }
         }
 
-        D3D11_BUFFER_DESC ibDesc = {};
-        ibDesc.Usage = D3D11_USAGE_DEFAULT;
-        ibDesc.ByteWidth = sizeof(uint32) * SkinnedIndices.Num();
-        ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-
-        D3D11_SUBRESOURCE_DATA ibData = {};
-        ibData.pSysMem = SkinnedIndices.GetData();
-
-        hr = Graphics->Device->CreateBuffer(&ibDesc, &ibData, &IndexBuffer);
-        if (FAILED(hr))
+        // IndexBuffer 생성
         {
-            UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal index buffer"));
-            VertexBuffer->Release();
-            continue;
+            D3D11_BUFFER_DESC ibDesc = {};
+            ibDesc.Usage = D3D11_USAGE_DEFAULT;
+            ibDesc.ByteWidth = sizeof(uint32) * SkinnedIndices.Num();
+            ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+            D3D11_SUBRESOURCE_DATA ibData = {};
+            ibData.pSysMem = SkinnedIndices.GetData();
+
+            HRESULT hr = Graphics->Device->CreateBuffer(&ibDesc, &ibData, &IndexBuffer);
+            if (FAILED(hr))
+            {
+                UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal index buffer"));
+                VertexBuffer->Release();
+                continue;
+            }
         }
 
-        // 3. 선택 여부, UUID 등
+        // 기존 RenderData 복사 후 버퍼만 교체
+        OBJ::FStaticMeshRenderData TempRenderData = *RenderData;
+        TempRenderData.VertexBuffer = VertexBuffer;
+        TempRenderData.IndexBuffer = IndexBuffer;
+        TempRenderData.Indices = SkinnedIndices;
+
+        // UUID 및 WorldMatrix 설정
         UEditorEngine* Engine = Cast<UEditorEngine>(GEngine);
-
         USceneComponent* SelectedComponent = Engine->GetSelectedComponent();
         AActor* SelectedActor = Engine->GetSelectedActor();
-
-        USceneComponent* TargetComponent = nullptr;
-        if (SelectedComponent) TargetComponent = SelectedComponent;
-        else if (SelectedActor) TargetComponent = SelectedActor->GetRootComponent();
+        USceneComponent* TargetComponent = SelectedComponent ? SelectedComponent :
+            (SelectedActor ? SelectedActor->GetRootComponent() : nullptr);
 
         const bool bIsSelected = (Engine && TargetComponent == Comp);
 
@@ -440,24 +450,120 @@ void FStaticMeshRenderPass::RenderAllSkeletalMeshes(const std::shared_ptr<FViewp
 
         UpdateObjectConstant(WorldMatrix, UUIDColor, bIsSelected);
 
-        // 4. Draw
-        UINT Stride = sizeof(FVector);
-        UINT Offset = 0;
-        Graphics->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
-        Graphics->DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-        Graphics->DeviceContext->DrawIndexed(SkinnedIndices.Num(), 0, 0);
+        const TArray<FStaticMaterial*>& UsedMaterials = SkeletalMesh->GetUsedMaterials();
+        TArray<UMaterial*> OverrideMaterials;
+        OverrideMaterials.Init(nullptr, UsedMaterials.Num());
 
-        // 5. AABB 디버깅
+        // 렌더 호출
+        RenderPrimitive(&TempRenderData, UsedMaterials, OverrideMaterials, Comp->GetSelectedSubMeshIndex());
+
+        // AABB 디버깅 렌더링
         if (Viewport->GetShowFlag() & static_cast<uint64>(EEngineShowFlags::SF_AABB))
         {
             FEngineLoop::PrimitiveDrawBatch.AddAABBToBatch(Comp->GetBoundingBox(), Comp->GetWorldLocation(), WorldMatrix);
         }
 
-        // 6. 임시 버퍼 해제
+        VertexBuffer->Release();
+        IndexBuffer->Release();
+    }
+}
+
+
+
+/*void FStaticMeshRenderPass::RenderAllSkeletalMeshes(const std::shared_ptr<FViewportClient>& Viewport)
+{
+    for (USkeletalMeshComponent* Comp : SkeletalMeshComponents)
+    {
+        if (!Comp || !Comp->GetSkeletalMesh())
+            continue;
+
+        USkeletalMesh* SkeletalMesh = Comp->GetSkeletalMesh();
+
+        // 1. CPU 스키닝 결과 획득
+        TArray<FStaticMeshVertex> SkinnedVertices;
+        TArray<uint32> Indices;
+        Comp->GetSkinnedVertexIndexBuffers(SkinnedVertices, Indices);
+        if (SkinnedVertices.IsEmpty() || Indices.IsEmpty())
+            continue;
+
+
+        // 3. GPU 버퍼 생성
+        ID3D11Buffer* VertexBuffer = nullptr;
+        ID3D11Buffer* IndexBuffer = nullptr;
+
+        {
+            D3D11_BUFFER_DESC vbDesc = {};
+            vbDesc.Usage = D3D11_USAGE_DEFAULT;
+            vbDesc.ByteWidth = sizeof(FStaticMeshVertex) * SkinnedVertices.Num();
+            vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+            D3D11_SUBRESOURCE_DATA vbData = {};
+            vbData.pSysMem = SkinnedVertices.GetData();
+
+            HRESULT hr = Graphics->Device->CreateBuffer(&vbDesc, &vbData, &VertexBuffer);
+            if (FAILED(hr)) {
+                UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal vertex buffer"));
+                continue;
+            }
+        }
+
+        {
+            D3D11_BUFFER_DESC ibDesc = {};
+            ibDesc.Usage = D3D11_USAGE_DEFAULT;
+            ibDesc.ByteWidth = sizeof(uint32) * Indices.Num();
+            ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+            D3D11_SUBRESOURCE_DATA ibData = {};
+            ibData.pSysMem = Indices.GetData();
+
+            HRESULT hr = Graphics->Device->CreateBuffer(&ibDesc, &ibData, &IndexBuffer);
+            if (FAILED(hr)) {
+                UE_LOG(LogLevel::Error, TEXT("Failed to create skeletal index buffer"));
+                VertexBuffer->Release();
+                continue;
+            }
+        }
+
+        // 4. 임시 RenderData 생성
+        OBJ::FStaticMeshRenderData TempRenderData;
+        TempRenderData.VertexBuffer = VertexBuffer;
+        TempRenderData.IndexBuffer = IndexBuffer;
+        TempRenderData.Indices = Indices;
+
+        // 5. 머티리얼 처리 (단일 머티리얼 가정)
+        TArray<FStaticMaterial*> Materials = SkeletalMesh->GetUsedMaterials();
+        TArray<UMaterial*> OverrideMaterials;
+        OverrideMaterials.Init(nullptr, Materials.Num());
+
+        // 6. UUID 및 WorldMatrix 설정
+        UEditorEngine* Engine = Cast<UEditorEngine>(GEngine);
+        USceneComponent* SelectedComponent = Engine->GetSelectedComponent();
+        AActor* SelectedActor = Engine->GetSelectedActor();
+        USceneComponent* TargetComponent = SelectedComponent ? SelectedComponent :
+            (SelectedActor ? SelectedActor->GetRootComponent() : nullptr);
+
+        const bool bIsSelected = (Engine && TargetComponent == Comp);
+
+        FMatrix WorldMatrix = Comp->GetWorldMatrix();
+        FVector4 UUIDColor = Comp->EncodeUUID() / 255.0f;
+
+        UpdateObjectConstant(WorldMatrix, UUIDColor, bIsSelected);
+
+        // 7. 렌더 호출 (기존 StaticMesh와 동일한 RenderPrimitive 사용)
+         RenderPrimitive(&TempRenderData, Materials, OverrideMaterials, 0);
+
+        // 8. AABB 디버깅
+        if (Viewport->GetShowFlag() & static_cast<uint64>(EEngineShowFlags::SF_AABB))
+        {
+            FEngineLoop::PrimitiveDrawBatch.AddAABBToBatch(Comp->GetBoundingBox(), Comp->GetWorldLocation(), WorldMatrix);
+        }
+
+        // 9. 임시 버퍼 해제
         IndexBuffer->Release();
         VertexBuffer->Release();
     }
-}
+}*/
+
 
 void FStaticMeshRenderPass::Render(const std::shared_ptr<FViewportClient>& Viewport)
 {
