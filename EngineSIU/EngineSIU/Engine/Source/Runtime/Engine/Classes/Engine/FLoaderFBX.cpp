@@ -103,8 +103,7 @@ void FLoaderFBX::ProcessSkeletalMesh(
             }
         }
 
-        // —— 삼각형 빌드 (역순으로 넣어 와인딩 고정) ——
-        for (int j = 2; j >= 0; --j)
+        for (int j = 0; j <= 2; ++j)
         {
             int cpIndex = Mesh->GetPolygonVertex(poly, j);
 
@@ -133,7 +132,7 @@ void FLoaderFBX::ProcessSkeletalMesh(
                 {
                     FbxVector2 UV; bool unmapped;
                     Mesh->GetPolygonVertexUV(poly, j, UVSets[0], UV, unmapped);
-                    Vertex.U = UV[0]; Vertex.V = UV[1];
+                    Vertex.U = UV[0]; Vertex.V = 1.0f - UV[1];
                 }
 
                 // 스키닝 정보
@@ -313,6 +312,7 @@ void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMe
             FObjMaterialInfo MatInfo;
             MatInfo.MaterialName = MatName;
 
+            // Diffuse 텍스처 속성 처리
             FbxProperty DiffuseProperty = Material->FindProperty(FbxSurfaceMaterial::sDiffuse);
             if (DiffuseProperty.IsValid())
             {
@@ -322,6 +322,10 @@ void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMe
                     FbxFileTexture* Texture = DiffuseProperty.GetSrcObject<FbxFileTexture>(0);
                     MatInfo.DiffuseTexturePath = ((FString)Texture->GetFileName()).ToWideString();
                     MatInfo.DiffuseTextureName = Texture->GetName();
+
+                    FLoaderOBJ::CreateTextureFromFile(MatInfo.DiffuseTexturePath);
+                    MatInfo.TextureFlag |= (1 << 1); 
+
                 }
             }
 
@@ -338,6 +342,7 @@ void FLoaderFBX::TraverseMeshNodes(FbxNode* Node, FSkeletalMeshRenderData& OutMe
         TraverseMeshNodes(Node->GetChild(i), OutMeshData, Scene);
     }
 }
+
 
 
 
