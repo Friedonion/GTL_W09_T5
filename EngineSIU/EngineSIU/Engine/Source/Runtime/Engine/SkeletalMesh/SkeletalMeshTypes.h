@@ -5,6 +5,7 @@
 #include "Math/Vector.h"
 
 
+struct FMaterialSubset;
 class UMaterial;
 struct FObjMaterialInfo;
 
@@ -36,4 +37,5 @@ struct FSkeletalMeshData
     TArray<FBone> Bones;
     TMap<FString, int> BoneNameToIndex;
     TArray<UMaterial*> Materials;
+    TArray<FMaterialSubset> MaterialSubsets;
 };

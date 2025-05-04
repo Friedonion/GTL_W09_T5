@@ -123,6 +123,9 @@ public:
 
         return true;
     }
+    void Append(const TArray<T, Allocator>& Other);
+    void Append(const T* Items, SizeType Count);
+
 };
 
 
@@ -392,4 +395,15 @@ FArchive& operator<<(FArchive& Ar, TArray<ElementType, Allocator>& Array)
     }
 
     return Ar;
+}
+template <typename T, typename Allocator>
+void TArray<T, Allocator>::Append(const TArray<T, Allocator>& Other)
+{
+    ContainerPrivate.insert(ContainerPrivate.end(), Other.ContainerPrivate.begin(), Other.ContainerPrivate.end());
+}
+
+template <typename T, typename Allocator>
+void TArray<T, Allocator>::Append(const T* Items, SizeType Count)
+{
+    ContainerPrivate.insert(ContainerPrivate.end(), Items, Items + Count);
 }

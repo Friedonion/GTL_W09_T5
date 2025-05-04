@@ -56,7 +56,11 @@ static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* 
 
     TArray<FSkinnedVertex> Vertices;
     Vertices.SetNum(ControlPointCount);
+    FbxGeometryElementUV* UVElement = Mesh->GetElementUV();
+    FbxGeometryElementMaterial* MaterialElement = Mesh->GetElementMaterial();
 
+    // Bone weights (per ControlPointIndex)
+    TMap<int, FSkinnedVertex> ControlPointInfluence;
     // Bone weights from skin
     if (Skin)
     {
@@ -92,50 +96,52 @@ static void ExtractMesh(FSkeletalMeshData& OutMeshData, FbxMesh* Mesh, FbxSkin* 
         }
     }
 
-    // Vertex Position 저장
-    for (int i = 0; i < ControlPointCount; ++i)
+    // Polygon → Vertex
+    for (int polyIndex = 0; polyIndex < Mesh->GetPolygonCount(); ++polyIndex)
     {
-        Vertices[i].Position = ConvertFbxVector(ControlPoints[i]);
-    }
-    // UV 좌표 추출
-    FbxGeometryElementUV* UVElement = Mesh->GetElementUV();
-    if (UVElement && UVElement->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
-    {
-        for (int polyIndex = 0; polyIndex < Mesh->GetPolygonCount(); ++polyIndex)
+        int MaterialIndex = 0;
+        if (MaterialElement && MaterialElement->GetMappingMode() == FbxGeometryElement::eByPolygon)
         {
-            for (int vertIndex = 0; vertIndex < 3; ++vertIndex)
+            MaterialIndex = MaterialElement->GetIndexArray().GetAt(polyIndex);
+        }
+
+        for (int vertIndex = 0; vertIndex < 3; ++vertIndex)
+        {
+            int ctrlPtIdx = Mesh->GetPolygonVertex(polyIndex, vertIndex);
+            FbxVector4 fbxPos = Mesh->GetControlPointAt(ctrlPtIdx);
+            FSkinnedVertex V;
+
+            V.Position = ConvertFbxVector(fbxPos);
+            V.MaterialIndex = MaterialIndex;
+
+            if (ControlPointInfluence.Contains(ctrlPtIdx))
             {
-                int ctrlPtIndex = Mesh->GetPolygonVertex(polyIndex, vertIndex);
+                V = ControlPointInfluence[ctrlPtIdx];
+                V.Position = ConvertFbxVector(fbxPos); // 보정
+                V.MaterialIndex = MaterialIndex;
+            }
+
+            if (UVElement)
+            {
                 int uvIndex = Mesh->GetTextureUVIndex(polyIndex, vertIndex);
                 FbxVector2 fbxUV = UVElement->GetDirectArray().GetAt(uvIndex);
-                Vertices[ctrlPtIndex].UV = FVector2D(static_cast<float>(fbxUV[0]), 1.0f - static_cast<float>(fbxUV[1]));
+                V.UV = FVector2D(static_cast<float>(fbxUV[0]), 1.0f - static_cast<float>(fbxUV[1]));
             }
+
+            OutMeshData.Indices.Add(OutMeshData.Vertices.Num()); // 새로운 정점 인덱스
+            OutMeshData.Vertices.Add(V);
         }
     }
-    // 삼각형 인덱스 저장 (offset 적용)
-    const int PolygonCount = Mesh->GetPolygonCount();
-    for (int i = 0; i < PolygonCount; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            int VertexIndex = Mesh->GetPolygonVertex(i, j);
-            OutMeshData.Indices.Add(VertexOffset + VertexIndex);
-        }
-    }
-    for (const FSkinnedVertex& V : Vertices)
-    {
-        OutMeshData.Vertices.Add(V); // 또는 Add(V); 사용자 정의 TArray에 맞게
-    }
 
-
-    // 머티리얼 처리
-    FbxSurfaceMaterial* Material = Node->GetMaterial(0);
-    if (Material)
+    // 머티리얼
+    for (int i = 0; i < Node->GetMaterialCount(); ++i)
     {
-        UMaterial* NewMaterial = FSkeletalMeshLoader::CreateMaterialFromFbx(Material, FilePath);
-        if (NewMaterial)
+        FbxSurfaceMaterial* Material = Node->GetMaterial(i);
+        if (Material)
         {
-            OutMeshData.Materials.Add(NewMaterial); // Materials는 TArray<UMaterial*> 여야 함
+            UMaterial* NewMaterial = FSkeletalMeshLoader::CreateMaterialFromFbx(Material, FilePath);
+            if (NewMaterial)
+                OutMeshData.Materials.Add(NewMaterial);
         }
     }
 
@@ -182,8 +188,63 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
     // 본 추출
     ExtractSkeletonHierarchy(MeshData, Scene->GetRootNode(), -1);
 
-    // 메시 추출 (재귀 순회)
-    TraverseAndExtractMeshes(MeshData, Scene->GetRootNode(),FilePath);
+    // 메시 추출
+    TraverseAndExtractMeshes(MeshData, Scene->GetRootNode(), FilePath);
+
+    // --- MaterialIndex 기반 Submesh 분리 ---
+    TMap<uint32, TArray<uint32>> SubmeshIndexMap;
+    for (int32 i = 0; i < MeshData.Indices.Num(); i += 3)
+    {
+        uint32 Index0 = MeshData.Indices[i];
+        uint32 MatIndex = 0;
+        if (MeshData.Vertices.IsValidIndex(Index0))
+        {
+            MatIndex = MeshData.Vertices[Index0].MaterialIndex;
+        }
+
+        TArray<uint32>& FaceList = SubmeshIndexMap.FindOrAdd(MatIndex);
+        FaceList.Add(MeshData.Indices[i]);
+        FaceList.Add(MeshData.Indices[i + 1]);
+        FaceList.Add(MeshData.Indices[i + 2]);
+    }
+
+    MeshData.Indices.Empty();
+    MeshData.MaterialSubsets.Empty();
+
+    // 정렬
+    TArray<uint32> SortedKeys;
+    for (const auto& Pair : SubmeshIndexMap)
+    {
+        SortedKeys.Add(Pair.Key);
+    }
+    for (int i = 0; i < SortedKeys.Num(); ++i)
+    {
+        for (int j = i + 1; j < SortedKeys.Num(); ++j)
+        {
+            if (SortedKeys[j] < SortedKeys[i])
+            {
+                uint32 Temp = SortedKeys[i];
+                SortedKeys[i] = SortedKeys[j];
+                SortedKeys[j] = Temp;
+            }
+        }
+    }
+
+    // Submesh 정보 적용
+    for (uint32 MatIndex : SortedKeys)
+    {
+        const TArray<uint32>& FaceIndices = *SubmeshIndexMap.Find(MatIndex);
+
+        FMaterialSubset Subset;
+        Subset.MaterialIndex = MatIndex;
+        Subset.IndexStart = MeshData.Indices.Num();
+        Subset.IndexCount = FaceIndices.Num();
+
+        MeshData.Indices.Append(FaceIndices);
+        MeshData.MaterialSubsets.Add(Subset);
+    }
+
+    // 디버깅 출력
     for (const auto& Vertex : MeshData.Vertices)
     {
         UE_LOG(LogLevel::Display, TEXT("Vertex Pos: %s"), *Vertex.Position.ToString());
@@ -191,6 +252,7 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
             Vertex.BoneIndices[0], Vertex.BoneIndices[1], Vertex.BoneIndices[2], Vertex.BoneIndices[3],
             Vertex.BoneWeights[0], Vertex.BoneWeights[1], Vertex.BoneWeights[2], Vertex.BoneWeights[3]);
     }
+
     // SkeletalMesh 생성
     USkeletalMesh* NewMesh = FObjectFactory::ConstructObject<USkeletalMesh>(nullptr);
     NewMesh->SetSkeletalMeshData(MeshData);
@@ -198,6 +260,7 @@ USkeletalMesh* FSkeletalMeshLoader::LoadFromFBX(const FString& FilePath)
     SdkManager->Destroy();
     return NewMesh;
 }
+
 UMaterial* FSkeletalMeshLoader::CreateMaterialFromFbx(FbxSurfaceMaterial* FbxMat, const FString& FbxFilePath)
 {
     if (!FbxMat)

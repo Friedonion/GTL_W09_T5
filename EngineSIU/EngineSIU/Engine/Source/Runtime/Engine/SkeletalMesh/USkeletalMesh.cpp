@@ -36,8 +36,7 @@ void USkeletalMesh::SetSkeletalMeshData(const FSkeletalMeshData& InData)
     Materials.Empty();
     for (UMaterial* Mat : InData.Materials)
     {
-        if (!Mat)
-            continue;
+        if (!Mat) continue;
 
         FStaticMaterial* NewSlot = new FStaticMaterial();
         NewSlot->Material = Mat;
@@ -57,10 +56,10 @@ void USkeletalMesh::SetSkeletalMeshData(const FSkeletalMeshData& InData)
         CPUIndexBuffer = FEngineLoop::Renderer.CreateImmutableIndexBuffer(TEXT("SkeletalMesh_CPU"), Indices);
     }
 
-    // 추가: StaticMeshRenderData 구조로 변환
     if (!RenderData)
         RenderData = new OBJ::FStaticMeshRenderData();
 
+    // Vertex 변환
     RenderData->Vertices.Reserve(Vertices.Num());
     for (const FSkinnedVertex& V : Vertices)
     {
@@ -69,47 +68,84 @@ void USkeletalMesh::SetSkeletalMeshData(const FSkeletalMeshData& InData)
         SV.Y = V.Position.Y;
         SV.Z = V.Position.Z;
 
-        // 기본 색상 값 설정 (옵션)
-        SV.R = 1.0f;
-        SV.G = 1.0f;
-        SV.B = 1.0f;
-        SV.A = 1.0f;
+        SV.R = 1.0f; SV.G = 1.0f; SV.B = 1.0f; SV.A = 1.0f;
 
-        // 노말, 탄젠트 (없다면 0으로 초기화)
-        SV.NormalX = 0.0f;
-        SV.NormalY = 0.0f;
-        SV.NormalZ = 1.0f;
-        SV.TangentX = 1.0f;
-        SV.TangentY = 0.0f;
-        SV.TangentZ = 0.0f;
+        SV.NormalX = 0.0f; SV.NormalY = 0.0f; SV.NormalZ = 1.0f;
+        SV.TangentX = 1.0f; SV.TangentY = 0.0f; SV.TangentZ = 0.0f;
 
         SV.U = V.UV.X;
         SV.V = V.UV.Y;
-
-        SV.MaterialIndex = 0; // 단일 머티리얼 기준
+        SV.MaterialIndex = V.MaterialIndex;
 
         RenderData->Vertices.Add(SV);
     }
 
-    RenderData->Indices = Indices;
     RenderData->VertexBuffer = CPUVertexBuffer;
     RenderData->IndexBuffer = CPUIndexBuffer;
-    RenderData->Materials.Reserve(Materials.Num());
-    RenderData->MaterialSubsets.Empty();
-    if (!Indices.IsEmpty())
-    {
-        FMaterialSubset Subset;
-        Subset.MaterialIndex = 0;
-        Subset.IndexStart = 0;
-        Subset.IndexCount = Indices.Num();
-        RenderData->MaterialSubsets.Add(Subset);
-    }
 
+    RenderData->Materials.Empty();
     for (const FStaticMaterial* M : Materials)
     {
         if (M && M->Material)
         {
             RenderData->Materials.Add(M->Material->GetMaterialInfo());
         }
+    }
+
+    // MaterialIndex 기반 Submesh 분리
+    TMap<uint32, TArray<uint32>> SubmeshIndexMap;
+    for (int32 i = 0; i < Indices.Num(); i += 3)
+    {
+        uint32 Index0 = Indices[i];
+        uint32 MatIndex = 0;
+        if (RenderData->Vertices.IsValidIndex(Index0))
+        {
+            MatIndex = RenderData->Vertices[Index0].MaterialIndex;
+        }
+
+        TArray<uint32>& FaceList = SubmeshIndexMap.FindOrAdd(MatIndex);
+        FaceList.Add(Indices[i]);
+        FaceList.Add(Indices[i + 1]);
+        FaceList.Add(Indices[i + 2]);
+    }
+
+    // 키 수집 및 수동 정렬
+    TArray<uint32> SortedKeys;
+    for (const auto& Pair : SubmeshIndexMap)
+    {
+        SortedKeys.Add(Pair.Key);
+    }
+    // 기본 삽입 정렬 (크기 작을 경우 효율적)
+    for (int i = 0; i < SortedKeys.Num(); ++i)
+    {
+        for (int j = i + 1; j < SortedKeys.Num(); ++j)
+        {
+            if (SortedKeys[j] < SortedKeys[i])
+            {
+                uint32 Temp = SortedKeys[i];
+                SortedKeys[i] = SortedKeys[j];
+                SortedKeys[j] = Temp;
+            }
+        }
+    }
+
+    // 인덱스 및 서브셋 적용
+    RenderData->Indices.Empty();
+    RenderData->MaterialSubsets.Empty();
+    for (uint32 MatIndex : SortedKeys)
+    {
+        const TArray<uint32>& FaceIndices = *SubmeshIndexMap.Find(MatIndex);
+
+        FMaterialSubset Subset;
+        Subset.MaterialIndex = MatIndex;
+        Subset.IndexStart = RenderData->Indices.Num();
+        Subset.IndexCount = FaceIndices.Num();
+
+        for (uint32 Index : FaceIndices)
+        {
+            RenderData->Indices.Add(Index);
+        }
+
+        RenderData->MaterialSubsets.Add(Subset);
     }
 }
