@@ -5,7 +5,6 @@
 #include "Renderer/Renderer.h"
 #include "UnrealEd/PrimitiveDrawBatch.h"
 #include "Stats/ProfilerStatsManager.h"
-#include "Stats/GPUTimingManager.h"
 
 
 class FSlateAppMessageHandler;
@@ -13,17 +12,15 @@ class UnrealEd;
 class UImGuiManager;
 class UWorld;
 class FEditorViewportClient;
-class SSplitterV;
-class SSplitterH;
 class FGraphicDevice;
 class SLevelEditor;
 class FDXDBufferManager;
 class FLuaScriptManager;
 
-class FEngineLoop
+class FViewerLoop
 {
 public:
-    FEngineLoop();
+    FViewerLoop();
 
     int32 PreInit();
     int32 Init(HINSTANCE hInstance);
@@ -49,7 +46,6 @@ public:
 
     HWND AppWnd;
 
-    FGPUTimingManager GPUTimingManager;
     FEngineProfiler EngineProfiler;
 
 private:
@@ -59,7 +55,7 @@ private:
     std::unique_ptr<FSlateAppMessageHandler> AppMessageHandler;
     SLevelEditor* LevelEditor;
     UnrealEd* UnrealEditor;
-    FDXDBufferManager* BufferManager; 
+    FDXDBufferManager* BufferManager;
 
     bool bIsExit = false;
     // @todo Option으로 선택 가능하도록

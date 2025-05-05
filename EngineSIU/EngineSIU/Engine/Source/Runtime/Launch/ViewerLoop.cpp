@@ -1,30 +1,28 @@
-#include "EngineLoop.h"
+#include "ViewerLoop.h"
 #include "ImGuiManager.h"
 #include "UnrealClient.h"
 #include "WindowsPlatformTime.h"
-#include "Audio/AudioManager.h"
 #include "D3D11RHI/GraphicDevice.h"
 #include "Engine/EditorEngine.h"
 #include "LevelEditor/SLevelEditor.h"
-#include "Slate/Widgets/Layout/SSplitter.h"
 #include "UnrealEd/EditorViewportClient.h"
 #include "UnrealEd/UnrealEd.h"
 #include "World/World.h"
-#include "Renderer/TileLightCullingPass.h"
-#include "Engine/Lua/LuaScriptManager.h" 
 #include "UnrealEd/EditorConfigManager.h"
+#include "ViewerLoop.h"
 
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+extern FViewerLoop GViewerLoop;
 
-FGraphicsDevice FEngineLoop::GraphicDevice;
-FRenderer FEngineLoop::Renderer;
-UPrimitiveDrawBatch FEngineLoop::PrimitiveDrawBatch;
-FResourceMgr FEngineLoop::ResourceManager;
-uint32 FEngineLoop::TotalAllocationBytes = 0;
-uint32 FEngineLoop::TotalAllocationCount = 0;
+FGraphicsDevice FViewerLoop::GraphicDevice;
+FRenderer FViewerLoop::Renderer;
+UPrimitiveDrawBatch FViewerLoop::PrimitiveDrawBatch;
+FResourceMgr FViewerLoop::ResourceManager;
+uint32 FViewerLoop::TotalAllocationBytes = 0;
+uint32 FViewerLoop::TotalAllocationCount = 0;
 
-FEngineLoop::FEngineLoop()
+FViewerLoop::FViewerLoop()
     : AppWnd(nullptr)
     , UIMgr(nullptr)
     , LevelEditor(nullptr)
@@ -33,12 +31,12 @@ FEngineLoop::FEngineLoop()
 {
 }
 
-int32 FEngineLoop::PreInit()
+int32 FViewerLoop::PreInit()
 {
     return 0;
 }
 
-int32 FEngineLoop::Init(HINSTANCE hInstance)
+int32 FViewerLoop::Init(HINSTANCE hInstance)
 {
     FPlatformTime::InitTiming();
 
@@ -50,18 +48,12 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     UIMgr = new UImGuiManager;
     AppMessageHandler = std::make_unique<FSlateAppMessageHandler>();
     LevelEditor = new SLevelEditor();
-    LuaScriptManager = new FLuaScriptManager();
-    
+   
+
 
     UnrealEditor->Initialize();
     GraphicDevice.Initialize(AppWnd);
-    AudioManager::Get().Initialize();
 
-    if (!GPUTimingManager.Initialize(GraphicDevice.Device, GraphicDevice.DeviceContext))
-    {
-        UE_LOG(LogLevel::Error, TEXT("Failed to initialize GPU Timing Manager!"));
-    }
-    EngineProfiler.SetGPUTimingManager(&GPUTimingManager);
 
     // @todo Table에 Tree 구조로 넣을 수 있도록 수정
     EngineProfiler.RegisterStatScope(TEXT("Renderer_Render"), FName(TEXT("Renderer_Render_CPU")), FName(TEXT("Renderer_Render_GPU")));
@@ -81,7 +73,6 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     EngineProfiler.RegisterStatScope(TEXT("SlatePass"), FName(TEXT("SlatePass_CPU")), FName(TEXT("SlatePass_GPU")));
 
     BufferManager->Initialize(GraphicDevice.Device, GraphicDevice.DeviceContext);
-    Renderer.Initialize(&GraphicDevice, BufferManager, &GPUTimingManager);
     PrimitiveDrawBatch.Initialize(&GraphicDevice);
     UIMgr->Initialize(AppWnd, GraphicDevice.Device, GraphicDevice.DeviceContext);
     ResourceManager.Initialize(&Renderer, &GraphicDevice);
@@ -99,7 +90,7 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     return 0;
 }
 
-void FEngineLoop::Render() const
+void FViewerLoop::Render() const
 {
     GraphicDevice.Prepare();
 
@@ -111,7 +102,7 @@ void FEngineLoop::Render() const
             LevelEditor->SetActiveViewportClient(i);
             Renderer.Render(LevelEditor->GetActiveViewportClient());
         }
-        
+
         for (int i = 0; i < 4; ++i)
         {
             LevelEditor->SetActiveViewportClient(i);
@@ -122,13 +113,13 @@ void FEngineLoop::Render() const
     else
     {
         Renderer.Render(ActiveViewportCache);
-        
+
         Renderer.RenderViewport(ActiveViewportCache);
     }
-    
+
 }
 
-void FEngineLoop::Tick()
+void FViewerLoop::Tick()
 {
     LARGE_INTEGER Frequency;
     const double TargetFrameTime = 1000.0 / TargetFPS; // 한 프레임의 목표 시간 (밀리초 단위)
@@ -141,10 +132,6 @@ void FEngineLoop::Tick()
     while (bIsExit == false)
     {
         FProfilerStatsManager::BeginFrame();    // Clear previous frame stats
-        if (GPUTimingManager.IsInitialized())
-        {
-            GPUTimingManager.BeginFrame();      // Start GPU frame timing
-        }
 
         QueryPerformanceCounter(&StartTime);
 
@@ -163,7 +150,7 @@ void FEngineLoop::Tick()
 
         const float DeltaTime = static_cast<float>(ElapsedTime / 1000.f);
 
-        AudioManager::Get().Tick();
+
         GEngine->Tick(DeltaTime);
         LevelEditor->Tick(DeltaTime);
         Render();
@@ -179,16 +166,6 @@ void FEngineLoop::Tick()
         // Pending 처리된 오브젝트 제거
         GUObjectArray.ProcessPendingDestroyObjects();
 
-        if (GPUTimingManager.IsInitialized())
-        {
-            GPUTimingManager.EndFrame();        // End GPU frame timing
-        }
-
-        if (LuaScriptManager)
-        {
-            LuaScriptManager->HotReloadLuaScript();
-        }
-
         GraphicDevice.SwapBuffer();
         do
         {
@@ -199,25 +176,24 @@ void FEngineLoop::Tick()
     }
 }
 
-void FEngineLoop::GetClientSize(uint32& OutWidth, uint32& OutHeight) const
+void FViewerLoop::GetClientSize(uint32& OutWidth, uint32& OutHeight) const
 {
     RECT ClientRect = {};
     GetClientRect(AppWnd, &ClientRect);
-            
+
     OutWidth = ClientRect.right - ClientRect.left;
     OutHeight = ClientRect.bottom - ClientRect.top;
 }
 
-void FEngineLoop::Exit()
+void FViewerLoop::Exit()
 {
-    AudioManager::Get().Release();
     LevelEditor->Release();
     UIMgr->Shutdown();
     ResourceManager.Release(&Renderer);
     Renderer.Release();
     GraphicDevice.Release();
 
-    
+
     GEngine->Release();
 
     delete UnrealEditor;
@@ -226,7 +202,7 @@ void FEngineLoop::Exit()
     delete LevelEditor;
 }
 
-void FEngineLoop::WindowInit(HINSTANCE hInstance)
+void FViewerLoop::WindowInit(HINSTANCE hInstance)
 {
     WCHAR WindowClass[] = L"JungleWindowClass";
 
@@ -247,7 +223,7 @@ void FEngineLoop::WindowInit(HINSTANCE hInstance)
     );
 }
 
-LRESULT CALLBACK FEngineLoop::AppWndProc(HWND hWnd, uint32 Msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK FViewerLoop::AppWndProc(HWND hWnd, uint32 Msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam))
     {
@@ -267,7 +243,7 @@ LRESULT CALLBACK FEngineLoop::AppWndProc(HWND hWnd, uint32 Msg, WPARAM wParam, L
                 {
                     EditorEngine->SaveLevel();
                 }
-                
+
                 FEditorConfigManager::GetInstance().Clear();
                 EditorEngine->SaveConfig();
                 if (auto LevelEditor = GEngineLoop.GetLevelEditor())
@@ -290,32 +266,28 @@ LRESULT CALLBACK FEngineLoop::AppWndProc(HWND hWnd, uint32 Msg, WPARAM wParam, L
             auto LevelEditor = GEngineLoop.GetLevelEditor();
             if (LevelEditor)
             {
-                FEngineLoop::GraphicDevice.Resize(hWnd);
-                // FEngineLoop::Renderer.DepthPrePass->ResizeDepthStencil();
-                
+                FViewerLoop::GraphicDevice.Resize(hWnd);
+                // FViewerLoop::Renderer.DepthPrePass->ResizeDepthStencil();
+
                 uint32 ClientWidth = 0;
                 uint32 ClientHeight = 0;
                 GEngineLoop.GetClientSize(ClientWidth, ClientHeight);
 
                 std::shared_ptr<FEditorViewportClient> ViewportClient = LevelEditor->GetActiveViewportClient();
                 LevelEditor->ResizeEditor(ClientWidth, ClientHeight);
-                FEngineLoop::Renderer.TileLightCullingPass->ResizeViewBuffers(
-                  static_cast<uint32>(ViewportClient->GetD3DViewport().Width),
-                    static_cast<uint32>(ViewportClient->GetD3DViewport().Height)
-                );
             }
         }
-        GEngineLoop.UpdateUI();
+        GViewerLoop.UpdateUI();
         break;
     default:
-        GEngineLoop.AppMessageHandler->ProcessMessage(hWnd, Msg, wParam, lParam);
+        GViewerLoop.AppMessageHandler->ProcessMessage(hWnd, Msg, wParam, lParam);
         return DefWindowProc(hWnd, Msg, wParam, lParam);
     }
 
     return 0;
 }
 
-void FEngineLoop::UpdateUI()
+void FViewerLoop::UpdateUI()
 {
     Console::GetInstance().OnResize(AppWnd);
     if (GEngineLoop.GetUnrealEditor())
