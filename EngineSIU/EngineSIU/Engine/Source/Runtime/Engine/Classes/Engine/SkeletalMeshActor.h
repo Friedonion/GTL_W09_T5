@@ -11,6 +11,7 @@ class ASkeletalMeshActor : public AActor
 public:
     ASkeletalMeshActor();
 
+    virtual void Tick(float DeltaTime) override;
     virtual UObject* Duplicate(UObject* InOuter) override;
 
     USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkeletalMeshComponent; }

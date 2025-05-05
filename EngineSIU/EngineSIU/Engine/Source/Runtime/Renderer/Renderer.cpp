@@ -530,3 +530,14 @@ void FRenderer::RenderViewport(const std::shared_ptr<FViewportClient>& Viewport)
     QUICK_GPU_SCOPE_CYCLE_COUNTER(SlatePass_GPU, *GPUTimingManager)
     SlateRenderPass->Render(Viewport);
 }
+
+void FRenderer::UpdateVertexBuffer(ID3D11Buffer* VertexBuffer, const void* VertexData, size_t DataSize)
+{
+    D3D11_MAPPED_SUBRESOURCE MappedResource = {};
+    HRESULT hr = Graphics->DeviceContext->Map(VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+    if (SUCCEEDED(hr))
+    {
+        memcpy(MappedResource.pData, VertexData, DataSize);
+        Graphics->DeviceContext->Unmap(VertexBuffer, 0);
+    }
+}

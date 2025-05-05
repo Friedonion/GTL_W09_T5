@@ -72,14 +72,20 @@ protected:
     void EndRender();
     void ClearRenderArr() const;
     
+
+
     //==========================================================================
     // 버퍼 생성/해제 함수 (템플릿 포함)
     //==========================================================================
 public:
     template<typename T>
     ID3D11Buffer* CreateImmutableVertexBuffer(const FString& key, const TArray<T>& Vertices);
+    template<typename T>
+    ID3D11Buffer* CreateDynamicVertexBuffer(const FString& key, const TArray<T>& Vertices);
 
     ID3D11Buffer* CreateImmutableIndexBuffer(const FString& key, const TArray<uint32>& indices);
+
+    void UpdateVertexBuffer(ID3D11Buffer* VertexBuffer, const void* VertexData, size_t DataSize);
     
     // 상수 버퍼 생성/해제
     void CreateConstantBuffers();
@@ -130,3 +136,12 @@ inline ID3D11Buffer* FRenderer::CreateImmutableIndexBuffer(const FString& key, c
     BufferManager->CreateIndexBuffer(key, indices, IndexInfo);
     return IndexInfo.IndexBuffer;
 }
+
+template<typename T>
+ID3D11Buffer* FRenderer::CreateDynamicVertexBuffer(const FString& key, const TArray<T>& Vertices)
+{
+    FVertexInfo VertexBufferInfo;
+    BufferManager->CreateDynamicVertexBuffer(key, Vertices, VertexBufferInfo);
+    return VertexBufferInfo.VertexBuffer;
+}
+

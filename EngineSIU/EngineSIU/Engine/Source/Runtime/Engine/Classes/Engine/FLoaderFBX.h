@@ -45,6 +45,8 @@ namespace FBX
         FVector BoundingBoxMax;
 
         TArray<FSkeletonBone> Skeleton;
+
+        TArray<FBX::FSkeletalMeshVertex> OriginalVertices;
     };
 }
 
@@ -85,6 +87,19 @@ private:
         MeshData.BoundingBoxMin = Min;
         MeshData.BoundingBoxMax = Max;
     }
+    static FMatrix ConvertFbxMatrix(const FbxAMatrix& Src)
+    {
+        FMatrix Result;
+        for (int Row = 0; Row < 4; ++Row)
+        {
+            for (int Col = 0; Col < 4; ++Col)
+            {
+                Result.M[Row][Col] = static_cast<float>(Src.Get(Row, Col));
+            }
+        }
+        return Result;
+    }
+
 };
 
 

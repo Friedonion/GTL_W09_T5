@@ -45,3 +45,8 @@ void USkinnedMeshComponent::GetUsedMaterials(TArray<UMaterial*>& Out) const
         }
     }
 }
+
+void USkinnedMeshComponent::TickComponent(float DeltaTime)
+{
+    Super::TickComponent(DeltaTime);
+}

@@ -388,8 +388,10 @@ void FStaticMeshRenderPass::RenderAllSkeletalMeshes(const std::shared_ptr<FViewp
 
         UINT Stride = sizeof(FBX::FSkeletalMeshVertex);
         UINT Offset = 0;
-        Graphics->DeviceContext->IASetVertexBuffers(0, 1, &RenderData->VertexBuffer, &Stride, &Offset);
+        ID3D11Buffer* VertexBufferToUse = Comp->SkinnedVertexBuffer ? Comp->SkinnedVertexBuffer : RenderData->VertexBuffer;
+        Graphics->DeviceContext->IASetVertexBuffers(0, 1, &VertexBufferToUse, &Stride, &Offset);
         Graphics->DeviceContext->IASetIndexBuffer(RenderData->IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
 
         // 머터리얼 적용 (override 우선)
         for (int SubMeshIndex = 0; SubMeshIndex < RenderData->MaterialSubsets.Num(); SubMeshIndex++)

@@ -38,6 +38,7 @@ bool FLoaderFBX::ParseSkeletalMesh(const FString& FBXPath, FSkeletalMeshRenderDa
 
     TraverseMeshNodes(RootNode, OutMeshData, Scene);
 
+    OutMeshData.OriginalVertices = OutMeshData.Vertices;
     ComputeBoundingBox(OutMeshData);
     ExtractSkeleton(Scene, OutMeshData);
     SdkManager->Destroy();
@@ -236,10 +237,7 @@ void FLoaderFBX::ExtractSkeleton(FbxScene* Scene, FSkeletalMeshRenderData& OutMe
 
     TMap<FString, int> BoneNameToIndex;
 
-    // 먼저 Traverse 변수 선언
     std::function<void(FbxNode*, int)> Traverse;
-
-    // 람다 정의 (자기 자신 호출 가능하게)
     Traverse = [&](FbxNode* Node, int ParentIndex)
         {
             if (Node->GetNodeAttribute() &&
@@ -248,7 +246,9 @@ void FLoaderFBX::ExtractSkeleton(FbxScene* Scene, FSkeletalMeshRenderData& OutMe
                 FSkeletonBone Bone;
                 Bone.Name = Node->GetName();
                 Bone.ParentIndex = ParentIndex;
-                Bone.BindPoseMatrix = FMatrix::Identity;
+
+                FbxAMatrix BindMatrix = Node->EvaluateGlobalTransform(FBXSDK_TIME_ZERO);
+                Bone.BindPoseMatrix = ConvertFbxMatrix(BindMatrix);
 
                 int BoneIndex = OutMeshData.Skeleton.Num();
                 BoneNameToIndex.Add(Bone.Name, BoneIndex);
@@ -265,6 +265,7 @@ void FLoaderFBX::ExtractSkeleton(FbxScene* Scene, FSkeletalMeshRenderData& OutMe
 
     Traverse(RootNode, -1);
 }
+
 
 USkeletalMesh* FManagerFBX::CreateSkeletalMesh(const FString& PathFileName)
 {

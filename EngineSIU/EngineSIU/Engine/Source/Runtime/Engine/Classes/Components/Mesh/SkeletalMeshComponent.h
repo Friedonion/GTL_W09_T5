@@ -14,6 +14,12 @@ public:
     virtual void SetProperties(const TMap<FString, FString>& InProperties) override;
 
     virtual int CheckRayIntersection(const FVector& InRayOrigin, const FVector& InRayDirection, float& OutHitDistance) const override;
+    virtual void TickComponent(float DeltaTime) override;
 
-    // TODO: 애니메이션 기능 확장 예정
+    void ComputeGlobalBoneMatrices(const TArray<FBX::FSkeletonBone>& Bones, TArray<FMatrix>& OutGlobalTransforms);
+   
+    void ApplyCPUSkinning(const TArray<FBX::FSkeletalMeshVertex>& InVertices,const TArray<FBX::FSkeletonBone>& Bones,const TArray<FMatrix>& BoneMatrices,TArray<FBX::FSkeletalMeshVertex>& OutVertices);
+    
+    ID3D11Buffer* SkinnedVertexBuffer = nullptr;
+
 };

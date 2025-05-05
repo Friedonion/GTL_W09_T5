@@ -22,6 +22,7 @@ public:
     virtual void SetMaterial(uint32 ElementIndex, UMaterial* Material);
     virtual void SetMaterialByName(FName MaterialSlotName, UMaterial* Material);
     virtual void GetUsedMaterials(TArray<UMaterial*>& Out) const;
+    virtual void TickComponent(float DeltaTime) override;   
 #pragma endregion
 protected:
     TArray<UMaterial*> OverrideMaterials;

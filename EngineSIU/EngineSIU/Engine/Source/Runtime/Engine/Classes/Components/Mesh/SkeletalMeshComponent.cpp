@@ -3,6 +3,7 @@
 #include "EngineLoop.h"
 #include "GameFramework/Actor.h"
 #include "UObject/Casts.h"
+#include "Math/Quat.h"
 #include "Engine/FLoaderFBX.h" 
 
 UObject* USkeletalMeshComponent::Duplicate(UObject* InOuter)
@@ -81,3 +82,105 @@ int USkeletalMeshComponent::CheckRayIntersection(const FVector& InRayOrigin, con
     }
     return HitCount;
 }
+
+void USkeletalMeshComponent::TickComponent(float DeltaTime)
+{
+    Super::TickComponent(DeltaTime);
+
+    if (!SkeletalMesh || !SkeletalMesh->GetRenderData())
+        return;
+
+    const auto& RenderData = SkeletalMesh->GetRenderData();
+    const auto& Bones = RenderData->Skeleton;
+
+    TArray<FMatrix> BoneMatrices;
+    BoneMatrices.SetNum(Bones.Num());
+
+    static float TotalRotation = 0.0f;
+    TotalRotation += 30;
+
+    // Y축 회전 쿼터니언 → 행렬
+    FQuat QuatRotation = FQuat(FVector(0, 1, 0), FMath::DegreesToRadians(TotalRotation));
+    FMatrix Rotation = QuatRotation.ToMatrix();
+
+    for (int i = 0; i < Bones.Num(); ++i)
+    {
+        if (i == 0)
+        {
+            BoneMatrices[0] = Bones[0].BindPoseMatrix * Rotation;
+        }
+
+        else
+        {
+            int Parent = Bones[i].ParentIndex;
+            BoneMatrices[i] = Bones[i].BindPoseMatrix * BoneMatrices[Parent];
+        }
+    }
+
+    // 스키닝
+    const auto& OriginalVertices = RenderData->OriginalVertices;
+    TArray<FBX::FSkeletalMeshVertex> SkinnedVertices;
+    ApplyCPUSkinning(OriginalVertices, Bones, BoneMatrices, SkinnedVertices);
+
+    if (!SkinnedVertexBuffer)
+    {
+        SkinnedVertexBuffer = FEngineLoop::Renderer.CreateDynamicVertexBuffer(TEXT("CPU_SkinnedVB"), SkinnedVertices);
+    }
+    else
+    {
+        FEngineLoop::Renderer.UpdateVertexBuffer(SkinnedVertexBuffer, SkinnedVertices.GetData(), SkinnedVertices.Num() * sizeof(FBX::FSkeletalMeshVertex));
+    }
+}
+
+
+
+
+
+void USkeletalMeshComponent::ComputeGlobalBoneMatrices(const TArray<FBX::FSkeletonBone>& Bones, TArray<FMatrix>& OutGlobalTransforms)
+{
+    OutGlobalTransforms.SetNum(Bones.Num());
+
+    for (int i = 0; i < Bones.Num(); ++i)
+    {
+        const auto& Bone = Bones[i];
+        if (Bone.ParentIndex >= 0)
+        {
+            OutGlobalTransforms[i] = Bones[i].BindPoseMatrix * OutGlobalTransforms[Bone.ParentIndex];
+        }
+        else
+        {
+            OutGlobalTransforms[i] = Bones[i].BindPoseMatrix;
+        }
+    }
+}
+
+void USkeletalMeshComponent::ApplyCPUSkinning(const TArray<FBX::FSkeletalMeshVertex>& InVertices,const TArray<FBX::FSkeletonBone>& Bones,const TArray<FMatrix>& BoneMatrices, TArray<FBX::FSkeletalMeshVertex>& OutVertices)
+{
+    OutVertices = InVertices;
+
+    for (int i = 0; i < InVertices.Num(); ++i)
+    {
+        const auto& V = InVertices[i];
+        FVector SkinnedPos = FVector::ZeroVector;
+
+        for (int j = 0; j < 4; ++j)
+        {
+            int BoneIdx = V.BoneIndices[j];
+            float Weight = V.BoneWeights[j];
+            if (Weight <= 0.0f) continue;
+
+            const FMatrix& BoneMatrix = BoneMatrices[BoneIdx];
+            const FMatrix& InverseBindPose =FMatrix::Inverse(Bones[BoneIdx].BindPoseMatrix);
+            const FMatrix SkinMatrix = BoneMatrix * InverseBindPose;
+
+            FVector LocalPos(V.X, V.Y, V.Z);
+            SkinnedPos += SkinMatrix.TransformPosition(LocalPos) * Weight;
+        }
+
+        OutVertices[i].X = SkinnedPos.X;
+        OutVertices[i].Y = SkinnedPos.Y;
+        OutVertices[i].Z = SkinnedPos.Z;
+    }
+}
+
+
