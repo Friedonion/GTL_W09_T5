@@ -30,7 +30,7 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     SkeletalMesh->GetBoneNames(BoneName);
     // 1. 움직일 본 찾기
     if (BoneName.IsEmpty()) return;
-    int32 BoneIndex = SkeletalMesh->GetBoneIndexByName(BoneName[1]);
+    int32 BoneIndex = SkeletalMesh->GetBoneIndexByName(BoneName[0]);
 
     if (BoneIndex != INDEX_NONE)
     {

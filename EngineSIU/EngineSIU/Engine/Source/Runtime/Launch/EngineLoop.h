@@ -49,6 +49,10 @@ public:
 
     HWND AppWnd;
 
+    HWND FbxViewerWnd = nullptr;
+    std::shared_ptr<FEditorViewportClient> FbxViewportClient;
+
+
     FGPUTimingManager GPUTimingManager;
     FEngineProfiler EngineProfiler;
 

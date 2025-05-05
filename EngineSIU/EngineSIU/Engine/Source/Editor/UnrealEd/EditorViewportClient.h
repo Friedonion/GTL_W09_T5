@@ -87,6 +87,7 @@ public:
     void SetShowGizmo(bool bShow) { bShowGizmo = bShow; }
     bool IsShowGizmo() const { return bShowGizmo; }
 
+    HWND NativeWindow = nullptr;
 private:
     ATransformGizmo* GizmoActor = nullptr;
     USceneComponent* PickedGizmoComponent = nullptr;

@@ -46,6 +46,28 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     /* must be initialized before window. */
     WindowInit(hInstance);
 
+    // === FBX Viewer용 윈도우 생성 ===
+    WNDCLASSW FbxWc = {};
+    FbxWc.lpfnWndProc = AppWndProc; // 같은 WndProc 사용
+    FbxWc.hInstance = hInstance;
+    FbxWc.lpszClassName = L"FBXViewerWindowClass";
+    FbxWc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+
+    RegisterClassW(&FbxWc);
+
+    FbxViewerWnd = CreateWindowExW(
+        0,
+        L"FBXViewerWindowClass",
+        L"FBX Viewer",
+        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        200, 200, 800, 600,
+        nullptr, nullptr, hInstance, nullptr
+    );
+
+  
+
+
+
     UnrealEditor = new UnrealEd();
     BufferManager = new FDXDBufferManager();
     UIMgr = new UImGuiManager;
