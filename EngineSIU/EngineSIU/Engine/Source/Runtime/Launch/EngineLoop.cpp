@@ -14,7 +14,8 @@
 #include "Engine/Lua/LuaScriptManager.h" 
 #include "UnrealEd/EditorConfigManager.h"
 #include "Games/LastWar/UI/LastWarUI.h"
-
+#include "GameFramework/Actor.h"
+#include "Classes/Actors/ASkeletalMeshActor.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -94,6 +95,8 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
 
     GEngine = FObjectFactory::ConstructObject<UEditorEngine>(nullptr);
     GEngine->Init();
+    
+    ASkeletalMeshActor* SkeletalMeshActor = GEngine->ActiveWorld->SpawnActor<ASkeletalMeshActor>();
 
     UpdateUI();
 
@@ -110,7 +113,11 @@ void FEngineLoop::Render() const
         for (int i = 0; i < 4; ++i)
         {
             LevelEditor->SetActiveViewportClient(i);
+#ifdef _DEBUG_VIEWER
+            Renderer.RenderViewer(LevelEditor->GetActiveViewportClient());
+#else 
             Renderer.Render(LevelEditor->GetActiveViewportClient());
+#endif
         }
         
         for (int i = 0; i < 4; ++i)
@@ -122,8 +129,11 @@ void FEngineLoop::Render() const
     }
     else
     {
-        Renderer.Render(ActiveViewportCache);
-        
+#ifdef _DEBUG_VIEWER
+        Renderer.RenderViewer(LevelEditor->GetActiveViewportClient());
+#else 
+        Renderer.Render(LevelEditor->GetActiveViewportClient());
+#endif
         Renderer.RenderViewport(ActiveViewportCache);
     }
     
@@ -167,8 +177,10 @@ void FEngineLoop::Tick()
         AudioManager::Get().Tick();
         GEngine->Tick(DeltaTime);
         LevelEditor->Tick(DeltaTime);
+
         Render();
         UIMgr->BeginFrame();
+
         UnrealEditor->Render();
 
 

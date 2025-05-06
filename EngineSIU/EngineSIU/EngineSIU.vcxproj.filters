@@ -821,7 +821,9 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMesh.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\SkeletalMeshComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Renderer\SkeletalMeshRenderPass.cpp" />
-    <ClCompile Include="Engine\Source\Runtime\Renderer\SkeletalMeshViewerRenderPass.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\SkinnedMeshComponent.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\Animation\Skeleton.cpp" />
+    <ClCompile Include="Engine\Source\Runtime\Engine\SkinWeightVertexBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="EngineSIU.natvis" />
@@ -1075,7 +1077,9 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\Mesh\SkeletalMesh.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\SkeletalMeshComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Renderer\SkeletalMeshRenderPass.h" />
-    <ClInclude Include="Engine\Source\Runtime\Renderer\SkeletalMeshViewerRenderPass.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\SkinnedMeshComponent.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\Animation\Skeleton.h" />
+    <ClInclude Include="Engine\Source\Runtime\Engine\SkinWeightVertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SlateShader.hlsl" />

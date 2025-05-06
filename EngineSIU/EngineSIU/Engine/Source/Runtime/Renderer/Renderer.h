@@ -60,6 +60,7 @@ public:
     // 렌더 패스 관련 함수
     //==========================================================================
     void Render(const std::shared_ptr<FViewportClient>& Viewport);
+    void RenderViewer(const std::shared_ptr<FViewportClient>& Viewport);  // 뷰어모드용 렌더
     void RenderViewport(const std::shared_ptr<FViewportClient>& Viewport) const; // TODO: 추후 RenderSlate로 변경해야함
 
 protected:
