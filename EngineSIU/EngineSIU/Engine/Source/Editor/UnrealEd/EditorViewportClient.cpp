@@ -15,9 +15,8 @@
 #include "Engine/Engine.h"
 #include "LevelEditor/SLevelEditor.h"
 #include "SlateCore/Input/Events.h"
-
 #include "GameFramework/PlayerController.h"
-
+#include "Components/PrimitiveComponent.h"
 
 FEditorViewportClient::FEditorViewportClient() : FViewportClient()
 {
@@ -287,14 +286,25 @@ void FEditorViewportClient::InputKey(const FKeyEvent& InKeyEvent)
                     TargetComponent = SelectedActor->GetRootComponent();
                 }
 
-                if (TargetComponent)
+                if (UPrimitiveComponent* primitive = Cast<UPrimitiveComponent>(TargetComponent))
                 {
                     FViewportCamera& ViewTransform = PerspectiveCamera;
-                    ViewTransform.SetLocation(
-                        // TODO: 10.0f 대신, 정점의 min, max의 거리를 구해서 하면 좋을 듯
-                        TargetComponent->GetWorldLocation() - (ViewTransform.GetForwardVector() * 10.0f)
-                    );
+                    float fov = FieldOfView;
+
+                    // AABB 중심 및 크기
+                    FBoundingBox Box = primitive->GetBoundingBox();
+                    FVector Center = (Box.min + Box.max) * 0.5f;
+                    FVector Extents = (Box.max - Box.min) * 0.5f;
+                    float Radius = Extents.Length();
+
+                    // FOV 기반 카메라 거리 계산
+                    float VerticalFOV = FMath::DegreesToRadians(fov);
+                    float Distance = Radius / FMath::Tan(VerticalFOV * 0.5f);
+
+                    // 위치 이동
+                    ViewTransform.SetLocation(Center - ViewTransform.GetForwardVector() * Distance);
                 }
+
                 break;
             }
             case 'M':
