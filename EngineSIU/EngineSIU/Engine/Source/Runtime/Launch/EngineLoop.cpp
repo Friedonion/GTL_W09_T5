@@ -9,6 +9,7 @@
 #include "Slate/Widgets/Layout/SSplitter.h"
 #include "UnrealEd/EditorViewportClient.h"
 #include "UnrealEd/UnrealEd.h"
+#include "UnrealEd/ViewerEd.h"
 #include "World/World.h"
 #include "Renderer/TileLightCullingPass.h"
 #include "Engine/Lua/LuaScriptManager.h" 
@@ -33,6 +34,7 @@ FEngineLoop::FEngineLoop()
     , UIMgr(nullptr)
     , LevelEditor(nullptr)
     , UnrealEditor(nullptr)
+    , ViewerEditor(nullptr)
     , BufferManager(nullptr)
 {
 }
@@ -50,6 +52,7 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     WindowInit(hInstance);
 
     UnrealEditor = new UnrealEd();
+    ViewerEditor = new ViewerEd();
     BufferManager = new FDXDBufferManager();
     UIMgr = new UImGuiManager;
     AppMessageHandler = std::make_unique<FSlateAppMessageHandler>();
@@ -58,6 +61,7 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     
 
     UnrealEditor->Initialize();
+    ViewerEditor->Initialize();
     GraphicDevice.Initialize(AppWnd);
     AudioManager::Get().Initialize();
 
@@ -187,6 +191,7 @@ void FEngineLoop::Tick()
 #ifdef _DEBUG_VIEWER
         UIMgr->BeginFrame();
         //UnrealEditor->Render();
+        ViewerEditor->Render();
         //EngineProfiler.Render(GraphicDevice.DeviceContext, GraphicDevice.ScreenWidth, GraphicDevice.ScreenHeight);
         UIMgr->EndFrame();
 #else

@@ -824,6 +824,8 @@
     <ClCompile Include="Engine\Source\Runtime\Engine\Classes\Components\SkinnedMeshComponent.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\Animation\Skeleton.cpp" />
     <ClCompile Include="Engine\Source\Runtime\Engine\SkinWeightVertexBuffer.cpp" />
+    <ClCompile Include="Engine\Source\Editor\UnrealEd\ViewerEd.cpp" />
+    <ClCompile Include="Engine\Source\Editor\PropertyEditor\SkeletonDataPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="EngineSIU.natvis" />
@@ -1080,6 +1082,8 @@
     <ClInclude Include="Engine\Source\Runtime\Engine\Classes\Components\SkinnedMeshComponent.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\Animation\Skeleton.h" />
     <ClInclude Include="Engine\Source\Runtime\Engine\SkinWeightVertexBuffer.h" />
+    <ClInclude Include="Engine\Source\Editor\UnrealEd\ViewerEd.h" />
+    <ClInclude Include="Engine\Source\Editor\PropertyEditor\SkeletonDataPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\SlateShader.hlsl" />

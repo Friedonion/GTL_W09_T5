@@ -10,6 +10,7 @@
 
 class FSlateAppMessageHandler;
 class UnrealEd;
+class ViewerEd;
 class UImGuiManager;
 class UWorld;
 class FEditorViewportClient;
@@ -59,6 +60,8 @@ private:
     std::unique_ptr<FSlateAppMessageHandler> AppMessageHandler;
     SLevelEditor* LevelEditor;
     UnrealEd* UnrealEditor;
+    ViewerEd* ViewerEditor;
+
     FDXDBufferManager* BufferManager; //TODO: UEngine으로 옮겨야함.
 
     bool bIsExit = false;
