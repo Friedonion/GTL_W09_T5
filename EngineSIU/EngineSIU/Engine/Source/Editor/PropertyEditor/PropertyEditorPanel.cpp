@@ -36,6 +36,9 @@
 #include "Components/Shapes/SphereComponent.h"
 #include "Engine/CurveManager.h"
 
+#include "Components/SkeletalMeshComponent.h"
+#include "FLoaderFBX.h"
+
 void PropertyEditorPanel::Render()
 {
     UEditorEngine* Engine = Cast<UEditorEngine>(GEngine);
@@ -155,6 +158,12 @@ void PropertyEditorPanel::Render()
     {
         RenderForCameraComponent(CameraComponent);
     }
+
+    if (USkinnedMeshComponent* SkinnedMeshComponent = GetTargetComponent<USkinnedMeshComponent>(SelectedActor, SelectedComponent))
+    {
+        RenderForSkeletalMeshComponent(SkinnedMeshComponent);
+    }
+
 
     ImGui::End();
 }
@@ -1514,6 +1523,38 @@ void PropertyEditorPanel::RenderForCameraComponent(UCameraComponent* CameraCompo
     ImGui::PopStyleColor();
 }
 
+void PropertyEditorPanel::RenderForSkeletalMeshComponent(USkinnedMeshComponent* SkeletalMeshComp) const
+{
+    ImGui::Text("Skinned Mesh Component");
+    ImGui::Separator();
+
+    USkeletalMesh* SkeletalMesh = SkeletalMeshComp->GetSkeletalMesh();
+    if (SkeletalMesh)
+    {
+        FString MeshName = SkeletalMesh->GetName();
+        FString FilePath = SkeletalMesh->GetRenderData()->FilePath;
+
+        ImGui::Text("Skeletal Mesh: %s", *MeshName);
+        ImGui::Separator();
+
+        if (ImGui::Button("Open in EngineSIU_Viewer"))
+        {
+            std::filesystem::path AbsPath = std::filesystem::absolute(std::filesystem::path(GetData(FilePath)));
+
+            FString ViewerExe = TEXT("EngineSIU_Viewer.exe");
+
+            ShellExecuteW(
+                nullptr,
+                L"open",
+                ViewerExe.ToWideString().c_str(),
+                AbsPath.wstring().c_str(),
+                nullptr,
+                SW_SHOWNORMAL
+            );
+
+        }
+    }
+}
 void PropertyEditorPanel::OnResize(HWND hWnd)
 {
     RECT ClientRect;

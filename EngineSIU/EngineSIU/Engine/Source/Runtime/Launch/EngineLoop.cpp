@@ -19,6 +19,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "FLoaderFBX.h"
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 extern FWString GViewerFilePath;
 FGraphicsDevice FEngineLoop::GraphicDevice;
 FRenderer FEngineLoop::Renderer;
@@ -97,8 +98,10 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     GEngine = FObjectFactory::ConstructObject<UEditorEngine>(nullptr);
     GEngine->Init();
     
+#ifdef _DEBUG_VIEWER
     ASkeletalMeshActor* SkeletalMeshActor = GEngine->ActiveWorld->SpawnActor<ASkeletalMeshActor>();
     SkeletalMeshActor->GetSkeletalMeshComponent()->SetSkeletalMesh(FManagerFBX::GetSkeletalMesh(GViewerFilePath));
+#endif
 
     UpdateUI();
 
@@ -183,11 +186,8 @@ void FEngineLoop::Tick()
         Render();
 #ifdef _DEBUG_VIEWER
         UIMgr->BeginFrame();
-
         //UnrealEditor->Render();
-
         //EngineProfiler.Render(GraphicDevice.DeviceContext, GraphicDevice.ScreenWidth, GraphicDevice.ScreenHeight);
-
         UIMgr->EndFrame();
 #else
         UIMgr->BeginFrame();

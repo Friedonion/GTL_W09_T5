@@ -115,6 +115,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Viewer_Debug|x64'">
     <OutDir>$(SolutionDir)Binaries\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)Intermediate\Build\$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)_Viewer</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)Binaries\$(Platform)\$(Configuration)\</OutDir>

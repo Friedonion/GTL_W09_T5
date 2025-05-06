@@ -20,6 +20,7 @@ class UProjectileMovementComponent;
 class UTextComponent;
 class UHeightFogComponent;
 class UStaticMeshComponent;
+class USkinnedMeshComponent;
 
 // 헬퍼 함수 예시
 template<typename Getter, typename Setter>
@@ -65,6 +66,8 @@ private:
     void RenderForCurve(FString& CurvePath) const;
 
     void RenderForCameraComponent(UCameraComponent* CameraComponent) const;
+
+    void RenderForSkeletalMeshComponent(USkinnedMeshComponent* SkinnedMeshComponent) const;
     
     template<typename T>
         requires std::derived_from<T, UActorComponent>

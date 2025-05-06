@@ -26,8 +26,11 @@
 #include "Actors/SpotLightActor.h"
 #include "Actors/AmbientLightActor.h"
 #include "Actors/ASkeletalMeshActor.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Games/LastWar/Core/Spawner.h"
 #include "ImGUI/imgui.h"
+#include "UObject/Casts.h"
+#include "FLoaderFBX.h"
 
 void ControlEditorPanel::Render()
 {
@@ -400,6 +403,7 @@ void ControlEditorPanel::CreateModifyButton(const ImVec2 ButtonSize, ImFont* Ico
                 case OBJ_Mutant:
                 {
                     SpawnedActor = World->SpawnActor<ASkeletalMeshActor>();
+                    Cast<ASkeletalMeshActor>(SpawnedActor)->GetSkeletalMeshComponent()->SetSkeletalMesh(FManagerFBX::GetSkeletalMesh(L"Contents/Mutant.fbx"));
                     SpawnedActor->SetActorLabel(TEXT("OBJ_Mutant"));
                 }
                 case OBJ_TRIANGLE:
