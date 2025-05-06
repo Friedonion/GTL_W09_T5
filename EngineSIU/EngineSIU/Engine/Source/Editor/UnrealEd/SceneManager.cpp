@@ -111,8 +111,8 @@ void SceneManager::LoadSceneFromJsonFile(const std::filesystem::path& FilePath, 
     std::ifstream JsonFile(FilePath);
     if (!JsonFile.is_open())
     {
-        MessageBox(nullptr, (FString(FilePath) + FString("(으)로부터 Scene을 읽어오는데 실패했습니다!")).ToWideString().c_str(), L"Scene Load Error", MB_ICONWARNING | MB_OK);
-        UE_LOG(LogLevel::Error, "Failed to open file for reading: %s", FilePath.c_str());
+        //MessageBox(nullptr, (FString(FilePath) + FString("(으)로부터 Scene을 읽어오는데 실패했습니다!")).ToWideString().c_str(), L"Scene Load Error", MB_ICONWARNING | MB_OK);
+        //UE_LOG(LogLevel::Error, "Failed to open file for reading: %s", FilePath.c_str());
         return;
     }
 

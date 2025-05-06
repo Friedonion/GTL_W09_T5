@@ -1539,19 +1539,24 @@ void PropertyEditorPanel::RenderForSkeletalMeshComponent(USkinnedMeshComponent* 
 
         if (ImGui::Button("Open in EngineSIU_Viewer"))
         {
-            std::filesystem::path AbsPath = std::filesystem::absolute(std::filesystem::path(GetData(FilePath)));
+            WCHAR ExePath[MAX_PATH];
+            GetModuleFileNameW(nullptr, ExePath, MAX_PATH);
+            std::filesystem::path CurrentExeDir = std::filesystem::path(ExePath).parent_path();  // 상위 폴더
 
-            FString ViewerExe = TEXT("EngineSIU_Viewer.exe");
+            // 상위 폴더로 가서 Viewer_Debug/EngineSIU_Viewer.exe 로 이동
+            std::filesystem::path ViewerExePath = CurrentExeDir.parent_path() / "Viewer_Debug" / "EngineSIU_Viewer.exe";
 
+            std::filesystem::path AbsFbxPath = std::filesystem::absolute(std::filesystem::path(GetData(FilePath)));
+
+            // 실행
             ShellExecuteW(
                 nullptr,
                 L"open",
-                ViewerExe.ToWideString().c_str(),
-                AbsPath.wstring().c_str(),
+                ViewerExePath.wstring().c_str(),     // 실행할 exe 경로
+                AbsFbxPath.wstring().c_str(),        // 인자: FBX 경로
                 nullptr,
                 SW_SHOWNORMAL
             );
-
         }
     }
 }

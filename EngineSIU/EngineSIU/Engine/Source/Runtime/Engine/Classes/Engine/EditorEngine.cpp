@@ -52,8 +52,10 @@ void UEditorEngine::Init()
     
     TMap<FString, FString> Config = FEditorConfigManager::GetInstance().Read();
     FString ScenePath = FEditorConfigManager::GetValueFromConfig<std::string>(Config, "ScenePath", "Saved/DefaultLevel.scene");
-
+    
+#ifndef _DEBUG_VIEWER
     LoadLevel(ScenePath);
+#endif // DEBUG_VIEWER
 }
 
 bool UEditorEngine::TryQuit(bool& OutbIsSave)
