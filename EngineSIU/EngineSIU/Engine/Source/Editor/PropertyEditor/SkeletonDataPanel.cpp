@@ -101,7 +101,6 @@ void SkeletonDataPanel::Render()
             if (Children.Num() == 0) 
             {
                 nodeFlags |= ImGuiTreeNodeFlags_Leaf;
-                return;
             };
 
             bool isOpen = ImGui::TreeNodeEx(
