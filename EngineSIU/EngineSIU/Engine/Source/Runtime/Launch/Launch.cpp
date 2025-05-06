@@ -8,7 +8,7 @@
 
 FEngineLoop GEngineLoop;
 #ifdef _DEBUG_VIEWER
-FString GViewerFilePath;
+FWString GViewerFilePath;
 #endif
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
@@ -28,7 +28,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (argv && argc >= 2)
     {
-        GViewerFilePath = FString(argv[1]);
+        GViewerFilePath = FWString(argv[1]);
     }
     LocalFree(argv);
 #endif

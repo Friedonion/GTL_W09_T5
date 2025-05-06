@@ -16,9 +16,10 @@
 #include "Games/LastWar/UI/LastWarUI.h"
 #include "GameFramework/Actor.h"
 #include "Classes/Actors/ASkeletalMeshActor.h"
-
+#include "Components/SkeletalMeshComponent.h"
+#include "FLoaderFBX.h"
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
+extern FWString GViewerFilePath;
 FGraphicsDevice FEngineLoop::GraphicDevice;
 FRenderer FEngineLoop::Renderer;
 UPrimitiveDrawBatch FEngineLoop::PrimitiveDrawBatch;
@@ -97,6 +98,7 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     GEngine->Init();
     
     ASkeletalMeshActor* SkeletalMeshActor = GEngine->ActiveWorld->SpawnActor<ASkeletalMeshActor>();
+    SkeletalMeshActor->GetSkeletalMeshComponent()->SetSkeletalMesh(FManagerFBX::GetSkeletalMesh(GViewerFilePath));
 
     UpdateUI();
 
@@ -179,6 +181,15 @@ void FEngineLoop::Tick()
         LevelEditor->Tick(DeltaTime);
 
         Render();
+#ifdef _DEBUG_VIEWER
+        UIMgr->BeginFrame();
+
+        //UnrealEditor->Render();
+
+        //EngineProfiler.Render(GraphicDevice.DeviceContext, GraphicDevice.ScreenWidth, GraphicDevice.ScreenHeight);
+
+        UIMgr->EndFrame();
+#else
         UIMgr->BeginFrame();
 
         UnrealEditor->Render();
@@ -201,6 +212,7 @@ void FEngineLoop::Tick()
         {
             LuaScriptManager->HotReloadLuaScript();
         }
+#endif
 
         GraphicDevice.SwapBuffer();
         do

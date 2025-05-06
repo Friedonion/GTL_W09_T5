@@ -462,7 +462,7 @@ void FRenderer::RenderViewer(const std::shared_ptr<FViewportClient>& Viewport)
 
     RenderWorldScene(Viewport);
     //RenderPostProcess(Viewport);
-    RenderEditorOverlay(Viewport);
+    //RenderEditorOverlay(Viewport);
 
  /*   Graphics->DeviceContext->PSSetShaderResources(
         static_cast<UINT>(EShaderSRVSlot::SRV_Debug),
