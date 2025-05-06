@@ -9,5 +9,6 @@ enum class EWorldType
     EditorPreview,
     GamePreview,
     GameRPC,
+    Viewer,
     Inactive
 };

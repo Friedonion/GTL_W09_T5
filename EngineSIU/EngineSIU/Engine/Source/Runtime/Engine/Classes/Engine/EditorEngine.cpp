@@ -196,10 +196,6 @@ void UEditorEngine::StartPIE()
     PIEWorld->BeginPlay();
     GEngine->ActiveWorld->GetFirstPlayerController()->PlayerCameraManager->ViewTarget.Target = PlayerCharacter;
     //GEngine->ActiveWorld->GetFirstPlayerController()->PlayerCameraManager->StartCameraFade(0.0f, 1.0f, 10.0f, FLinearColor::Red, false, true);
-
-    
-
-    // 나중에 제거하기
 }
 
 void UEditorEngine::EndPIE()
@@ -222,6 +218,22 @@ void UEditorEngine::EndPIE()
     }
     // 다시 EditorWorld로 돌아옴.
     ActiveWorld = EditorWorld;
+}
+
+void UEditorEngine::StartViewer()
+{
+    FWorldContext& ViewerWorldContext = CreateNewWorldContext(EWorldType::Viewer);
+    UWorld* ViewerWorld = UWorld::CreateWorld(this, EWorldType::Viewer, FString("ViewerWorld"));
+    ViewerWorld->WorldType = EWorldType::Viewer;
+    ViewerWorldContext.SetCurrentWorld(ViewerWorld);
+    ActiveWorld = ViewerWorld;
+
+    // GameMode 없으므로 StartPIE에서 바로 PC 생성
+    // 1) PlayerController 스폰
+    APlayerController* PC = ActiveWorld->SpawnActor<APlayerController>();
+    ActiveWorld->AddPlayerController(PC);
+
+    ViewerWorld->BeginPlay();
 }
 
 FWorldContext& UEditorEngine::GetEditorWorldContext(/*bool bEnsureIsGWorld*/)

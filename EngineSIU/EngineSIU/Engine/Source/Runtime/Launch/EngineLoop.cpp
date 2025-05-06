@@ -103,6 +103,7 @@ int32 FEngineLoop::Init(HINSTANCE hInstance)
     GEngine->Init();
     
 #ifdef _DEBUG_VIEWER
+    Cast<UEditorEngine>(GEngine)->StartViewer();
     ASkeletalMeshActor* SkeletalMeshActor = GEngine->ActiveWorld->SpawnActor<ASkeletalMeshActor>();
     SkeletalMeshActor->GetSkeletalMeshComponent()->SetSkeletalMesh(FManagerFBX::GetSkeletalMesh(GViewerFilePath));
 #endif

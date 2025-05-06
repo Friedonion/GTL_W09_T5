@@ -274,7 +274,7 @@ void FRenderer::ClearRenderArr() const
 void FRenderer::UpdateCommonBuffer(const std::shared_ptr<FViewportClient>& Viewport) const
 {
     FCameraConstantBuffer CameraConstantBuffer;
-    if (GEngine->ActiveWorld->WorldType == EWorldType::Editor)
+    if (GEngine->ActiveWorld->WorldType == EWorldType::Editor || GEngine->ActiveWorld->WorldType == EWorldType::Viewer)
     {
         CameraConstantBuffer.ViewMatrix = Viewport->GetViewMatrix();
         CameraConstantBuffer.InvViewMatrix = FMatrix::Inverse(CameraConstantBuffer.ViewMatrix);
